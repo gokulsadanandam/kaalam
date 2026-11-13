@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "express": "npm:express@4.22.3",
+    "axios": "npm:axios@1.21.1",
+    "cheerio": "npm:cheerio@1.2.0",
+    "astronomy-engine": "npm:astronomy-engine@2.1.19"
+  }
+}

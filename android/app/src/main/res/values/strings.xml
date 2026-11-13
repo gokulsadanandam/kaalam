@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">காலம்</string>
+    <string name="widget_label">ராசி பலன் &amp; பஞ்சாங்கம்</string>
+    <string name="widget_description">இன்றைய ராசி பலன், நல்ல நேரம் மற்றும் ராகு காலம்</string>
+    <!-- In-app text (both languages) lives in data/Strings.kt: the language is an app preference. -->
+</resources>

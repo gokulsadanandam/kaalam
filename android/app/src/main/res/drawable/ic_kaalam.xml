@@ -1,0 +1,18 @@
+<!-- App icon: gold sun disc with rays on a maroon tile. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#FF7A1F2B"
+        android:pathData="M10,2h28a8,8 0,0 1,8 8v28a8,8 0,0 1,-8 8h-28a8,8 0,0 1,-8 -8v-28a8,8 0,0 1,8 -8z" />
+    <path
+        android:fillColor="#FFE2C062"
+        android:pathData="M24,15a9,9 0,1 1,0 18a9,9 0,1 1,0 -18z" />
+    <path
+        android:strokeColor="#FFE2C062"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M24,6v5M24,37v5M6,24h5M37,24h5M11.3,11.3l3.5,3.5M33.2,33.2l3.5,3.5M11.3,36.7l3.5,-3.5M33.2,14.8l3.5,-3.5" />
+</vector>

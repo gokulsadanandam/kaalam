@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- The only permission needed: periodic HTTPS fetch of the daily reading. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Timing reminders (bells): notifications, on-time alarms, restore after reboot. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!--
+        allowBackup="false": the DataStore holds a disposable cache; restoring a
+        stale reading onto a new device would be worse than refetching it.
+    -->
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_kaalam"
+        android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <!-- Rasi picker: launcher entry + widget (re)configuration screen. -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Today's full reading for one rasi, opened from the picker. -->
+        <activity
+            android:name=".ui.ReadingActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".ui.CalendarActivity"
+            android:exported="false"
+            android:parentActivityName=".ui.ReadingActivity" />
+
+        <!--
+            The widget provider. exported="true" is required so the system
+            (AppWidgetService) can deliver APPWIDGET_UPDATE broadcasts to it.
+            Glance's own receivers for click actions are merged in automatically
+            from the glance-appwidget library manifest.
+        -->
+        <receiver
+            android:name=".widget.RasiPalanWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/rasi_palan_widget_info" />
+        </receiver>
+
+        <!-- Widget "now / next" redraws (non-wakeup alarm). -->
+        <receiver
+            android:name=".widget.WidgetTickReceiver"
+            android:exported="false" />
+
+        <!-- Timing reminders. -->
+        <receiver
+            android:name=".reminders.ReminderReceiver"
+            android:exported="false" />
+        <receiver
+            android:name=".reminders.BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

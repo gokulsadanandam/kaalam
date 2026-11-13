@@ -1,0 +1,27 @@
+{
+  "name": "kaalam-rasipalan-api",
+  "version": "1.0.0",
+  "description": "Scrapes daily Tamil Rasi Palan and computes Panchangam timings (Rahu Kalam, Yamagandam, Kuligai, Abhijit) for the Kaalam Android widget.",
+  "main": "index.js",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "test": "node --test test/*.test.js",
+    "serve:deno": "deno run --allow-net --allow-env --allow-read --allow-sys supabase/functions/kaalam/index.ts"
+  },
+  "dependencies": {
+    "astronomy-engine": "^2.1.19",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "pg": "^8.23.1",
+    "sharp": "^0.34.5"
+  }
+}

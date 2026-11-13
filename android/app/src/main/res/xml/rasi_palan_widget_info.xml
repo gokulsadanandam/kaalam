@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Widget metadata.
+
+    updatePeriodMillis = 14400000 (4 hours). The system batches these with
+    other work and never wakes a sleeping device for them. Values below 30 min
+    are clamped by Android. Raise to 43200000 (12 h) for even lower activity;
+    the repository's freshness check already skips the network when the cache
+    is < 3 h old and from today.
+
+    initialLayout uses Glance's built-in loading layout, shown for the
+    fraction of a second before the first Glance composition is pushed.
+
+    configuration_optional (API 31+): place the widget immediately, without
+    forcing the picker. reconfigurable: long-press > settings opens the picker.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/glance_default_loading_layout"
+    android:configure="com.kaalam.rasipalan.MainActivity"
+    android:widgetFeatures="reconfigurable|configuration_optional"
+    android:minWidth="250dp"
+    android:minHeight="230dp"
+    android:targetCellWidth="4"
+    android:targetCellHeight="4"
+    android:minResizeWidth="110dp"
+    android:minResizeHeight="110dp"
+    android:maxResizeWidth="530dp"
+    android:maxResizeHeight="450dp"
+    android:resizeMode="horizontal|vertical"
+    android:updatePeriodMillis="14400000"
+    android:widgetCategory="home_screen" />
