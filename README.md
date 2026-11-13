@@ -338,7 +338,8 @@ is for non-commercial use only.
 1. Open `android/` in Android Studio with JDK 17. The project uses AGP 8.13
    with Gradle 8.13 (wrapper included) and targets API 36, as Google Play
    requires for new apps and updates from 31 August 2026. From the command
-   line: `./gradlew testDebugUnitTest assembleDebug` (or `bundleRelease` for Play).
+   line: `./gradlew testDebugUnitTest assembleDebug`. Signed release builds come
+   from the Release workflow (see [Automated builds and deployment](#automated-builds-and-deployment)).
 2. Set the API URL in `android/gradle.properties` (currently the deployed Supabase function):
    - Supabase: `kaalam.apiBaseUrl=https://<project-ref>.supabase.co/functions/v1/kaalam`
    - Vercel: `kaalam.apiBaseUrl=https://your-project.vercel.app`
@@ -382,6 +383,35 @@ Permissions: `INTERNET`; `POST_NOTIFICATIONS` (asked when you first tap a
 bell), `SCHEDULE_EXACT_ALARM` (on-time reminders; falls back to inexact
 alarms when not granted) and `RECEIVE_BOOT_COMPLETED` (restore reminders
 after a restart).
+
+## Automated builds and deployment
+
+GitHub Actions, set up like Tuitly's:
+
+| Workflow | Runs on | Does |
+|---|---|---|
+| [CI](.github/workflows/ci.yml) | every push to `main` and every pull request | Backend tests; Android unit tests and a debug APK (downloadable under the run's **Artifacts**); a release bundle and APK signed with a throwaway key, so release signing and R8 are known to work |
+| [Deploy backend](.github/workflows/deploy-backend.yml) | pushes to `main` that change `backend/`, or by hand | Backend tests, then `supabase db push` (new migrations only), then deploys the `kaalam` Edge Function and checks `/health` answers |
+| [Release](.github/workflows/release.yml) | a version tag (`git tag v1.0.0; git push origin v1.0.0`), or by hand | Tests, then a signed `.aab` and `.apk` (artifact `kaalam-<version>-<run number>`); uploads the bundle to the Play internal track when the Play key is set |
+
+The run number becomes the `versionCode` and the tag the `versionName`
+([app/build.gradle.kts](android/app/build.gradle.kts) reads them, and the
+signing key, from environment variables; local builds stay unsigned 1 / 1.0.0).
+
+**One-time setup** (in your own PowerShell window, from the repo folder). The
+scripts need the GitHub CLI (`winget install GitHub.cli`) signed in with the
+account that owns this repo (`gh auth login`, or `gh auth switch`); they always
+target `gokulsadanandam/kaalam` and stop if the active account can't manage it.
+
+| Script | Secrets it sets | Needed by |
+|---|---|---|
+| `scripts\set-deploy-secrets.ps1` | `SUPABASE_ACCESS_TOKEN` (create one at supabase.com/dashboard/account/tokens), `SUPABASE_DB_PASSWORD` (from `backend\.env`) | Deploy backend |
+| `scripts\create-upload-key.ps1` | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` (key saved in Documents\kaalam-keys — back it up) | Release |
+| `scripts\set-signing-secrets.ps1` | the same three, from an existing key | Release |
+| `scripts\setup-play-upload.ps1` | `PLAY_SERVICE_ACCOUNT_JSON` (optional; needs `gcloud`, and the app created in Play Console with a first bundle uploaded by hand) | Release → Play |
+
+Run them with `powershell -ExecutionPolicy Bypass -File scripts\<name>.ps1`.
+Edge Function secrets (`CRON_SECRET`, …) stay in Supabase; deploys don't touch them.
 
 ## Design notes
 

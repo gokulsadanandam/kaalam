@@ -11,6 +11,11 @@ plugins {
 val apiBaseUrl: String = providers.gradleProperty("kaalam.apiBaseUrl")
     .getOrElse("http://10.0.2.2:3000")
 
+// Release builds are signed with the upload key named by these variables, which
+// the Release workflow (.github/workflows/release.yml) fills from GitHub secrets.
+// No key or password is ever stored in the repo.
+val uploadKeystore: String? = System.getenv("ANDROID_KEYSTORE_PATH")
+
 android {
     namespace = "com.kaalam.rasipalan"
     compileSdk = 36
@@ -19,14 +24,27 @@ android {
         applicationId = "com.kaalam.rasipalan"
         minSdk = 26          // java.time + adaptive widget features without desugaring
         targetSdk = 36       // Google Play minimum for new apps and updates from 31 Aug 2026
-        versionCode = 1
-        versionName = "1.0.0"
+        // Set by the Release workflow: the run number and the version tag.
+        versionCode = System.getenv("VERSION_CODE")?.toInt() ?: 1
+        versionName = System.getenv("VERSION_NAME") ?: "1.0.0"
 
         buildConfigField("String", "RASI_API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
+    signingConfigs {
+        if (uploadKeystore != null) {
+            create("release") {
+                storeFile = file(uploadKeystore)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (uploadKeystore != null) signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
