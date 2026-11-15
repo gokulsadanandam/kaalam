@@ -3,6 +3,11 @@
  * of the Moon's transit through the houses counted from each rasi — refined
  * by the day's Panchangam (see lib/rasiFactors.js for the weights): Tara Bala
  * for each of the rasi's stars, tithi and yoga, the weekday lord and karana.
+ * After the house reading come one Tara sentence and one modifier sentence:
+ * a Vishti (Bhadrai) window when there is one, else Prathamai when it holds a
+ * quarter of the day, else the factor that shifted most since yesterday. A
+ * bridging sentence follows the house reading when the day's combined score
+ * points the other way.
  *
  * Favourable houses: 1, 3, 6, 7, 10, 11. Unfavourable: 2, 4, 5, 9, 12.
  * The 8th house is சந்திராஷ்டமம், the most cautionary day of the month.
@@ -309,16 +314,16 @@ const PLANETS = Object.freeze({
 /** Tara 1 … 9 and its rating, for the per-star notes. */
 const TARA_WORDS = Object.freeze({
   ta: {
-    names: [null, 'ஜென்ம', 'சம்பத்', 'விபத்', 'க்ஷேம', 'பிரத்யக்', 'சாதக', 'நைதன', 'மைத்ர', 'பரம மைத்ர'],
+    names: [null, 'ஜென்ம', 'சம்பத்து', 'விபத்து', 'க்ஷேம', 'பிரத்யக்', 'சாதக', 'வதை', 'மித்ர', 'பரம மித்ர'],
     ratings: { good: 'சாதகம்', mixed: 'கலவையான பலன்', caution: 'கவனம் தேவை' },
     note: (tara, rating) => `${tara} தாரை — ${rating}`,
-    then: (time, tara) => `; ${time} முதல் ${tara} தாரை`,
+    then: (time, tara, rating) => `; ${time} முதல் ${tara} தாரை (${rating})`,
   },
   en: {
     names: [null, 'Janma', 'Sampat', 'Vipat', 'Kshema', 'Pratyak', 'Sadhana', 'Naidhana', 'Mitra', 'Parama Mitra'],
     ratings: { good: 'favourable', mixed: 'mixed', caution: 'take care' },
     note: (tara, rating) => `${tara} Tara — ${rating}`,
-    then: (time, tara) => `; ${tara} from ${time}`,
+    then: (time, tara, rating) => `; ${tara} Tara (${rating}) from ${time}`,
   },
 });
 
@@ -332,9 +337,11 @@ const PANCHANGA_TEXT = Object.freeze({
     taraJanma: (star, janma, good) => `இன்று ${star} நட்சத்திரம் என்பதால் ${janma} நட்சத்திரக்காரர்களுக்கு ஜென்ம தாரை — உடலுக்கு ஓய்வு கொடுத்து நிதானமாகச் செயல்படுங்கள்`
       + (good ? `; ${good} நட்சத்திரக்காரர்களுக்குச் சாதகம்.` : '.'),
     starWithTara: (name, tara) => `${name} (${tara} தாரை)`,
+    starJanma: (name) => `${name} (ஜென்ம தாரை — நிதானம்)`,
     tithi: {
       good: (t) => `${t} திதி புதிய தொடக்கங்களுக்கு ஏற்றது.`,
       bad: (t) => `${t} திதி என்பதால் புதிய காரியங்களைத் தொடங்காமல் வழக்கமான வேலைகளைச் செய்யுங்கள்.`,
+      prathamai: (t) => `${t} திதி என்பதால் முக்கியமான புதிய தொடக்கங்களைத் தவிர்த்து வழக்கமான வேலைகளைச் செய்யுங்கள்.`,
       pournami: () => 'பௌர்ணமி என்பதால் மனதில் நிறைவும் நம்பிக்கையும் இருக்கும்; வழிபாட்டுக்கும் குடும்பத்துக்கும் ஏற்ற நாள்.',
       amavasai: () => 'அமாவாசை என்பதால் முன்னோர் வழிபாடு செய்து, புதிய முயற்சிகளைத் தள்ளிப்போடுங்கள்.',
     },
@@ -343,13 +350,13 @@ const PANCHANGA_TEXT = Object.freeze({
       bad: (y) => `${y} யோகம் என்பதால் ஒப்பந்தங்களிலும் பெரிய கொள்முதல்களிலும் அவசரம் வேண்டாம்.`,
     },
     weekday: {
-      own: (lord) => `இன்றைய வார அதிபதி ${lord} உங்கள் ராசிநாதனே என்பதால் முயற்சிகளுக்குக் கூடுதல் பலன் உண்டு.`,
-      friend: (lord, rasiLord) => `இன்றைய வார அதிபதி ${lord} உங்கள் ராசிநாதனுக்கு (${rasiLord}) நட்புக் கிரகம் என்பதால் ஆதரவு கிடைக்கும்.`,
-      neutral: (lord, rasiLord) => `இன்றைய வார அதிபதி ${lord} உங்கள் ராசிநாதனுக்கு (${rasiLord}) சமமான கிரகம் என்பதால் உழைப்புக்கு ஏற்ற பலன் கிடைக்கும்.`,
-      enemy: (lord, rasiLord) => `இன்றைய வார அதிபதி ${lord} உங்கள் ராசிநாதனுக்கு (${rasiLord}) பகைக் கிரகம் என்பதால் எதிர்பார்ப்புகளை அளவாக வைத்துக்கொள்ளுங்கள்.`,
+      own: (lord) => `இன்றைய கிழமை அதிபதி ${lord} உங்கள் ராசிநாதனே என்பதால் முயற்சிகளுக்குக் கூடுதல் பலன் உண்டு.`,
+      friend: (lord, rasiLord) => `இன்றைய கிழமை அதிபதி ${lord} உங்கள் ராசிநாதனுக்கு (${rasiLord}) நட்புக் கிரகம் என்பதால் ஆதரவு கிடைக்கும்.`,
+      neutral: (lord, rasiLord) => `இன்றைய கிழமை அதிபதி ${lord} உங்கள் ராசிநாதனுக்கு (${rasiLord}) சம கிரகம் என்பதால் உழைப்புக்கு ஏற்ற பலன் கிடைக்கும்.`,
+      enemy: (lord, rasiLord) => `இன்றைய கிழமை அதிபதி ${lord} உங்கள் ராசிநாதனுக்கு (${rasiLord}) பகைக் கிரகம் என்பதால் எதிர்பார்ப்புகளை அளவாக வைத்துக்கொள்ளுங்கள்.`,
     },
     karana: {
-      vishti: (k, range) => `${k} கரணம் (விஷ்டி) ${range} என்பதால் அந்த நேரத்தில் பயணங்களையும் சுப காரியங்களையும் தொடங்க வேண்டாம்.`,
+      vishti: (k, range) => `${range} விஷ்டி கரணம் (${k}) இருப்பதால் அந்த நேரத்தில் பயணங்களையும் சுப காரியங்களையும் தொடங்க வேண்டாம்.`,
       fixed: (k) => `${k} ஸ்திர கரணம் என்பதால் புதியவற்றைத் தொடங்குவதைவிட இருப்பதை முடிப்பது நல்லது.`,
       good: (k) => `${k} கரணம் வழக்கமான பணிகளுக்கு ஏற்றது.`,
       until: (end) => `${end} வரை`,
@@ -358,13 +365,15 @@ const PANCHANGA_TEXT = Object.freeze({
       allDay: 'நாள் முழுவதும்',
     },
     headline: {
-      taraUp: 'நட்சத்திர பலம் கூடும்',
+      taraUp: 'நட்சத்திர பலம் சாதகம்',
       taraDown: 'நட்சத்திர பலத்தில் கவனம்',
       good: (name) => `${name} சாதகம்`,
       bad: (name) => `${name} — நிதானம்`,
       vishti: 'விஷ்டி கரணம் — பயணத்தில் கவனம்',
     },
     weekdays: ['ஞாயிறு', 'திங்கள்', 'செவ்வாய்', 'புதன்', 'வியாழன்', 'வெள்ளி', 'சனி'],
+    // "…க்கிழமை" forms for headlines (the sandhi differs by day, so they are spelled out).
+    headlineWeekdays: ['ஞாயிற்றுக்கிழமை', 'திங்கட்கிழமை', 'செவ்வாய்க்கிழமை', 'புதன்கிழமை', 'வியாழக்கிழமை', 'வெள்ளிக்கிழமை', 'சனிக்கிழமை'],
   },
   en: {
     joinNames: (names) => (names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0]),
@@ -374,9 +383,11 @@ const PANCHANGA_TEXT = Object.freeze({
     taraJanma: (star, janma, good) => `${star} is the day's star, so ${janma} natives have Janma Tara — rest well and avoid strain`
       + (good ? `; ${good} natives are favoured.` : '.'),
     starWithTara: (name, tara) => `${name} (${tara})`,
+    starJanma: (name) => `${name} (Janma — pace yourself)`,
     tithi: {
       good: (t) => `${t} tithi supports new beginnings.`,
       bad: (t) => `${t} tithi is not suited to starting new work; stick to routine tasks.`,
+      prathamai: (t) => `${t} tithi is avoided for major new beginnings; keep to routine work.`,
       pournami: () => 'It is Pournami, bringing a full and hopeful mood — a good day for prayer and family.',
       amavasai: () => 'It is Amavasai: honour your ancestors and postpone new ventures.',
     },
@@ -400,14 +411,42 @@ const PANCHANGA_TEXT = Object.freeze({
       allDay: 'through the day',
     },
     headline: {
-      taraUp: 'stars turn favourable',
+      taraUp: 'stars are favourable',
       taraDown: 'stars call for care',
       good: (name) => `${name} helps`,
       bad: (name) => `${name} — go slow`,
       vishti: 'Vishti karana — care with travel',
     },
     weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    headlineWeekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
   },
+});
+
+/** Vishti (Bhadrai) holding at least this share of the day (about 3.5 hours) is always mentioned. */
+const VISHTI_MIN_FRACTION = 0.15;
+/** Prathamai holding at least this share of the day is mentioned when there is no Vishti window. */
+const PRATHAMAI_MIN_FRACTION = 0.25;
+/** A factor weaker than this today says nothing in the headline. */
+const HEADLINE_MIN_LEVEL = 0.15;
+/** Chandrashtamam shorter than this is mentioned but does not cap the day's score. */
+const CHANDRASHTAMAM_MIN_MS = 3_600_000;
+
+/** Opening line of a house-8 reading when Chandrashtamam starts during the day, not at sunrise. */
+const CHANDRASHTAMAM_LATER = Object.freeze({
+  ta: 'இன்று பிற்பகுதியில் சந்திராஷ்டமம் தொடங்குகிறது.',
+  en: 'Chandrashtamam begins later today.',
+});
+
+/** Bridge from a favourable Moon house to a day whose combined score is negative. */
+const BRIDGE_TO_CAUTION = Object.freeze({
+  ta: 'இருப்பினும், இன்றைய பஞ்சாங்க அமைப்புகள் சற்று சாதகமற்றதாக இருப்பதால் நிதானத்துடன் செயல்படுவது நல்லது.',
+  en: 'However, unfavourable Panchangam influences today suggest pacing yourself and double-checking commitments.',
+});
+
+/** Bridge from a cautionary Moon house to a day whose combined score is positive. */
+const BRIDGE_TO_GOOD = Object.freeze({
+  ta: 'இருப்பினும் இன்றைய மற்ற பஞ்சாங்க அம்சங்கள் சாதகமாக இருப்பதால் நாள் பொதுவாக நன்றாகவே அமையும்.',
+  en: 'Even so, the rest of the day\'s Panchangam is supportive, so the day goes better than the Moon alone suggests.',
 });
 
 /** Part of day for a change time given as minutes after midnight. */
@@ -470,18 +509,19 @@ function houseFrom(rasiIndex, moonRasiIndex) {
 const SENTENCES = Object.freeze({
   ta: {
     intoChandrashtamam: (t) => `${t} முதல் சந்திராஷ்டமம் தொடங்குவதால், அதன் பிறகு கவனமாகச் செயல்படுங்கள்.`,
-    outOfChandrashtamam: (t) => `${t} உடன் சந்திராஷ்டமம் விலகுவதால், அதன் பிறகு நிலைமை சீராகும்.`,
+    outOfChandrashtamam: (t) => `${t}-க்குப் பிறகு சந்திராஷ்டமம் விலகுவதால், அதன் பிறகு நிலைமை சீராகும்.`,
     better: (t) => `${t} முதல் சந்திரன் இடம் மாறுவதால் நிலைமை மேம்படும்.`,
     worse: (t) => `${t} முதல் சந்திரன் இடம் மாறுவதால் சற்று கவனம் தேவை.`,
     morningChandrashtamam: (t) => `${t} வரை சந்திராஷ்டமம் இருப்பதால் காலையில் கவனம் தேவை.`,
     betterUntil: (t) => `${t} வரை நிலைமை சாதகமாக இருக்கும்.`,
     worseUntil: (t) => `${t} வரை சற்று கவனம் தேவை.`,
   },
+  // The first four take the in-sentence time ("at 3:53 PM", "tomorrow at 4:58 AM").
   en: {
-    intoChandrashtamam: (t) => `Chandrashtamam begins at ${t}, so be careful after that.`,
-    outOfChandrashtamam: (t) => `Chandrashtamam ends at ${t}, and things settle down after that.`,
-    better: (t) => `The Moon changes sign at ${t}, and things improve after that.`,
-    worse: (t) => `The Moon changes sign at ${t}; take a little more care after that.`,
+    intoChandrashtamam: (t) => `Chandrashtamam begins ${t}, so be careful after that.`,
+    outOfChandrashtamam: (t) => `Chandrashtamam ends ${t}, and things settle down after that.`,
+    better: (t) => `The Moon changes sign ${t}, and things improve after that.`,
+    worse: (t) => `The Moon changes sign ${t}; take a little more care after that.`,
     morningChandrashtamam: (t) => `Chandrashtamam lasts until ${t}, so be careful in the morning.`,
     betterUntil: (t) => `Things go well until ${t}.`,
     worseUntil: (t) => `Take a little more care until ${t}.`,
@@ -506,7 +546,7 @@ function starNotes(factors, names, words, formatTime) {
   return factors.detail.stars.map((star) => {
     const [first, ...rest] = star.parts;
     const note = words.note(taraName(first.tara), words.ratings[TARAS[first.tara].rating])
-      + rest.map((p) => words.then(formatTime(p.startMs), taraName(p.tara))).join('');
+      + rest.map((p) => words.then(formatTime(p.startMs), taraName(p.tara), words.ratings[TARAS[p.tara].rating])).join('');
     return {
       nakshatra: names.nakshatras[star.nakshatraIndex],
       nakshatraIndex: star.nakshatraIndex,
@@ -528,7 +568,13 @@ function taraSentence(factors, stars, names, P) {
   const janma = stars.filter((s) => s.rating === 'mixed');
   const good = stars.filter((s) => s.rating === 'good');
   const goodNames = good.length ? P.joinNames(good.map((s) => s.nakshatra)) : null;
-  if (caution.length) return P.taraCaution(dayStar, P.joinNames(caution.map((s) => P.starWithTara(s.nakshatra, s.taraName))), goodNames);
+  if (caution.length) {
+    // Janma Tara stars are named with the cautioned ones, so the day star's own natives are never left out.
+    const careful = stars
+      .filter((s) => s.rating !== 'good')
+      .map((s) => (s.rating === 'mixed' ? P.starJanma(s.nakshatra) : P.starWithTara(s.nakshatra, s.taraName)));
+    return P.taraCaution(dayStar, P.joinNames(careful), goodNames);
+  }
   if (janma.length) return P.taraJanma(dayStar, P.joinNames(janma.map((s) => s.nakshatra)), goodNames);
   return P.taraAllGood(dayStar);
 }
@@ -551,6 +597,7 @@ function factorSentence(factor, factors, lang, P, formatTime, day) {
     const kind = tithiKind(pick.seg.index);
     if (kind === 'pournami') return P.tithi.pournami();
     if (kind === 'amavasai') return P.tithi.amavasai();
+    if (kind === 'prathamai') return P.tithi.prathamai(pick.seg.name);
     return (pick.score > 0 ? P.tithi.good : P.tithi.bad)(pick.seg.name);
   }
   if (factor === 'weekday') {
@@ -572,28 +619,37 @@ function factorSentence(factor, factors, lang, P, formatTime, day) {
   return (isFixedKarana(main.index) ? P.karana.fixed : P.karana.good)(main.name);
 }
 
-/** Short headline suffix for the day's dominant shift, or ''. */
+/**
+ * Short headline suffix for the factor that shifted most, or ''. Its polarity
+ * is today's level of that factor (not the direction it moved in), so the
+ * headline never contradicts the sentences below it; a factor near zero today
+ * (a neutral weekday lord, a mixed Tara day) says nothing.
+ */
 function shiftSuffix(shift, factors, lang, P) {
   const h = P.headline;
-  if (shift.factor === 'tara') return shift.direction > 0 ? h.taraUp : h.taraDown;
+  if (shift.factor === 'karana') return factors.detail.karana.vishtiFraction >= VISHTI_MIN_FRACTION ? h.vishti : '';
+  const level = factors.values[shift.factor];
+  if (Math.abs(level) < HEADLINE_MIN_LEVEL) return '';
+  if (shift.factor === 'tara') return level > 0 ? h.taraUp : h.taraDown;
   if (shift.factor === 'tithiYoga') {
     const pick = tithiOrYoga(factors);
+    if ((pick.score > 0) !== (level > 0)) return ''; // the named element pulls against the day's level
     const name = pick.kind === 'yoga' ? `${pick.seg.name} ${lang === 'en' ? 'yoga' : 'யோகம்'}` : pick.seg.name;
-    return (pick.score > 0 ? h.good : h.bad)(name);
+    return (level > 0 ? h.good : h.bad)(name);
   }
-  if (shift.factor === 'weekday') {
-    const value = factors.values.weekday || shift.direction;
-    return (value > 0 ? h.good : h.bad)(P.weekdays[factors.detail.weekday.dayLord]);
-  }
-  if (factors.detail.karana.vishti) return h.vishti;
-  return '';
+  return (level > 0 ? h.good : h.bad)(P.headlineWeekdays[factors.detail.weekday.dayLord]);
 }
+
+/** Does this day's Panchangam have every span list the factors need? */
+const hasSpans = (p, keys) => keys.every((k) => Array.isArray(p[k]) && p[k].length > 0);
+const FACTOR_SPANS = ['nakshatra', 'tithi', 'yoga', 'karana'];
 
 /**
  * @param rasiIndex     0 = மேஷம் … 11 = மீனம்
  * @param moonRasiSpans [{ index, endMs }] from sunrise to next sunrise
  * @param day           { sunriseMs, sunsetMs, nextSunriseMs }
- * @param formatTime    (ms) => display string, e.g. "2:18 PM"
+ * @param formatTime    (ms) => display string, e.g. "2:18 PM". An optional `formatTime.at(ms)` gives the
+ *                      in-sentence form ("at 2:18 PM", "tomorrow at 4:58 AM"); without it English uses "at <time>".
  * @param lang          'ta' (default) or 'en'
  * @param minutesOfDay  (ms) => minutes after local midnight (for "evening" etc.)
  * @param panchanga     optional { iso, weekday, nakshatra, tithi, yoga, karana, previous } — the
@@ -620,8 +676,13 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
   const text = english ? GOCHARA_EN[house] : entry;
 
   let prediction = houseText(house, lang, panchanga ? phrasingFor(panchanga.iso, rasiIndex) : 0);
+  // Chandrashtamam that starts during the day: "Today is Chandrashtamam" would contradict the start time below.
+  if (house === 8 && primary !== first) {
+    prediction = prediction.replace(/^[^.]*\.\s*/, `${english ? CHANDRASHTAMAM_LATER.en : CHANDRASHTAMAM_LATER.ta} `);
+  }
   const baseHeadline = HEADLINES[house][english ? 1 : 0];
   let headline = baseHeadline;
+  let moonSentence = '';
   if (changeMs !== null) {
     const fromHouse = houseFrom(rasiIndex, first.index);
     const toHouse = houseFrom(rasiIndex, second.index);
@@ -629,13 +690,16 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
     const part = change.parts[partIndex];
     const untilPart = change.untilParts[partIndex];
     const time = formatTime(changeMs);
+    let timeAt = time;
+    if (formatTime.at) timeAt = formatTime.at(changeMs);
+    else if (english) timeAt = `at ${time}`;
     const delta = GOCHARA[toHouse].score - GOCHARA[fromHouse].score;
     let sentence = '';
     let suffix = '';
     if (primary === first) {
       // Late change (evening or night).
       if (changeMs < day.sunsetMs || toHouse === 8 || fromHouse === 8) {
-        sentence = transitionSentence(fromHouse, toHouse, time, sentences);
+        sentence = transitionSentence(fromHouse, toHouse, timeAt, sentences);
         if (toHouse === 8) suffix = change.into(part);
         else if (fromHouse === 8) headline = change.chandrashtamamUntil(untilPart); // the day *is* house 8
         else if (delta < 0) suffix = change.worse(part);
@@ -647,16 +711,19 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
       if (changeMs > midday) headline = change.chandrashtamamUntil(untilPart);
       else suffix = change.outOf(part);
     } else if (toHouse === 8) {
-      sentence = sentences.intoChandrashtamam(time);
+      sentence = sentences.intoChandrashtamam(timeAt);
       if (changeMs > day.sunriseMs + hour) headline = change.chandrashtamamFrom(untilPart);
     } else if (changeMs - day.sunriseMs >= 2 * hour && delta !== 0) {
       // The earlier sign held for a meaningful part of the morning.
       sentence = delta < 0 ? sentences.betterUntil(time) : sentences.worseUntil(time);
       suffix = delta < 0 ? change.goodUntil(untilPart) : change.carefulUntil(untilPart);
     }
-    if (sentence) prediction = `${prediction} ${sentence}`;
+    moonSentence = sentence;
     if (suffix) headline = `${headline}; ${suffix}`;
   }
+  // The house reading, then the Moon-change sentence (a bridging sentence may go between them below).
+  const houseReading = prediction;
+  prediction = [houseReading, moonSentence].filter(Boolean).join(' ');
 
   const houses = moonRasiSpans.map((s) => houseFrom(rasiIndex, s.index));
   const words = english ? CHANDRASHTAMAM_TEXT.en : CHANDRASHTAMAM_TEXT.ta;
@@ -682,27 +749,52 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
   let score = entry.score;
   let summary = text.summary;
   let stars = null;
-  if (panchanga) {
+  // A Panchangam with a span list missing cannot be weighed: the reading stays Chandra Gochara alone.
+  if (panchanga && hasSpans(panchanga, FACTOR_SPANS)) {
     const names = namesFor(english ? 'en' : 'ta');
     const P = english ? PANCHANGA_TEXT.en : PANCHANGA_TEXT.ta;
     const factors = dayFactors(rasiIndex, { ...panchanga, moonRasi: moonRasiSpans, sunriseMs: day.sunriseMs, nextSunriseMs: day.nextSunriseMs });
-    const previous = panchanga.previous ? dayFactors(rasiIndex, panchanga.previous) : null;
+    const previous = panchanga.previous && hasSpans(panchanga.previous, [...FACTOR_SPANS, 'moonRasi'])
+      ? dayFactors(rasiIndex, panchanga.previous)
+      : null;
     const shift = dominantShift(factors, previous);
 
-    // Chandrashtamam outweighs every other factor.
-    score = scoreOf(factors.total);
+    // Chandrashtamam outweighs every other factor: -2 when it rules the day, at most -1 when it
+    // holds an hour or more of it. A shorter brush is mentioned in the text but leaves the score alone.
+    const chandrashtamamMs = factors.detail.moon.reduce(
+      (sum, s) => sum + (houseFrom(rasiIndex, s.index) === 8 ? s.endMs - s.startMs : 0),
+      0,
+    );
+    const composite = scoreOf(factors.total);
+    score = composite;
     if (house === 8) score = -2;
-    else if (houses.includes(8)) score = Math.min(score, -1);
+    else if (chandrashtamamMs >= CHANDRASHTAMAM_MIN_MS) score = Math.min(score, -1);
     // Keep the one-word summary in step with the score's direction.
     if (Math.sign(score) !== Math.sign(entry.score)) summary = (english ? TONE_EN : TONE)[score];
+    // A cautionary Moon house on a day that is good overall: say so, rather than leave the two to clash.
+    let bridge = '';
+    if (entry.score < 0 && score > 0) bridge = english ? BRIDGE_TO_GOOD.en : BRIDGE_TO_GOOD.ta;
+    // And the reverse: a favourable house on a day the Panchangam pulls down. A day that is negative only
+    // because of the Chandrashtamam cap already has its Chandrashtamam sentence, so it gets no bridge.
+    if (entry.score > 0 && composite < 0) bridge = english ? BRIDGE_TO_CAUTION.en : BRIDGE_TO_CAUTION.ta;
+    // The bridge answers the house reading, so it comes straight after it, before any Moon-change sentence.
+    prediction = [houseReading, bridge, moonSentence].filter(Boolean).join(' ');
 
     stars = starNotes(factors, names, TARA_WORDS[english ? 'en' : 'ta'], formatTime);
     const tara = taraSentence(factors, stars, names, P);
     const candidates = ['tithiYoga', 'weekday', 'karana'];
-    const modifierFactor = candidates.includes(shift.factor)
+    // A real Vishti (Bhadrai) window is always the modifier, unless Chandrashtamam already rules the day:
+    // averaged over the day its karana value is close to zero, so it would never win on strength.
+    const vishtiWindow = house !== 8 && factors.detail.karana.vishtiFraction >= VISHTI_MIN_FRACTION;
+    let modifierFactor = 'karana';
+    if (!vishtiWindow) modifierFactor = candidates.includes(shift.factor)
       ? shift.factor
       : candidates.reduce((a, b) => (Math.abs(WEIGHTS[b] * factors.values[b]) > Math.abs(WEIGHTS[a] * factors.values[a]) ? b : a));
-    const modifier = factorSentence(modifierFactor, factors, lang, P, formatTime, day);
+    // Next in line is Prathamai: it lowers the score, so the text says why when it holds a good part of the day.
+    const prathamai = !vishtiWindow && house !== 8 && factors.detail.tithi.prathamaiFraction >= PRATHAMAI_MIN_FRACTION
+      ? factors.detail.tithi.segments.find((s) => tithiKind(s.index) === 'prathamai')
+      : null;
+    const modifier = prathamai ? P.tithi.prathamai(prathamai.name) : factorSentence(modifierFactor, factors, lang, P, formatTime, day);
     prediction = shift.factor === 'tara' ? `${prediction} ${tara} ${modifier}` : `${prediction} ${modifier} ${tara}`;
 
     // A Moon change or Chandrashtamam already shapes the headline; otherwise name the day's main shift.
@@ -723,7 +815,7 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
       dominant: shift,
       previous: previous ? { values: previous.values, total: previous.total } : null,
       tara: { dayStar: names.nakshatras[factors.detail.dayStar.index], stars },
-      tithi: { name: tithi.main.name, kind: tithiKind(tithi.main.index), value: tithi.value },
+      tithi: { name: tithi.main.name, kind: tithiKind(tithi.main.index), value: tithi.value, prathamaiFraction: tithi.prathamaiFraction },
       yoga: { name: yoga.main.name, value: yoga.value },
       weekday: {
         weekday: P.weekdays[weekday.dayLord],
@@ -734,6 +826,7 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
       karana: {
         name: karana.main.name,
         vishti: karana.vishti ? { name: karana.vishti.name, from: formatTime(karana.vishti.startMs), until: formatTime(karana.vishti.endMs) } : null,
+        vishtiFraction: karana.vishtiFraction,
         value: factors.values.karana,
       },
     };

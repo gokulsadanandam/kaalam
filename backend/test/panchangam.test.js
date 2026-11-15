@@ -150,7 +150,7 @@ test('Tara Bala for Magaram\'s stars changes day to day (15–16 Nov 2026, Moon 
   // Day star Uthiradam, then Thiruvonam.
   assert.deepEqual(sun.stars.map((s) => s.taraName), ['Janma', 'Parama Mitra', 'Mitra']);
   assert.deepEqual(mon.stars.map((s) => s.taraName), ['Sampat', 'Janma', 'Parama Mitra']);
-  assert.match(sun.stars[0].note, /^Janma Tara — mixed; Sampat from 11:29 PM$/);
+  assert.match(sun.stars[0].note, /^Janma Tara — mixed; Sampat Tara \(favourable\) from 11:29 PM$/);
 
   const f = sun.basis.factors;
   assert.deepEqual(Object.values(f.weights), [0.4, 0.3, 0.15, 0.1, 0.05]);
@@ -179,6 +179,109 @@ test('no rasi gets the same reading on two consecutive days, for a whole year', 
       previous = generated;
     }
   }
+});
+
+/** Every English reading of 2026 for Chennai, computed once for the regression tests below. */
+let englishYear = null;
+function readingsOf2026() {
+  if (englishYear) return englishYear;
+  englishYear = [];
+  const start = Date.UTC(2026, 0, 1);
+  for (let i = 0; i < 365; i++) {
+    const d = new Date(start + i * 86_400_000);
+    const iso = d.toISOString().slice(0, 10);
+    const { generated } = computeAstroDay(day(iso, d.getUTCDay()), ...CHENNAI, 'en');
+    for (const rasi of RASIS) englishYear.push({ iso, rasi: rasi.key, g: generated[rasi.key] });
+  }
+  return englishYear;
+}
+
+test('a Vishti karana window of 15% of the day or more is always in the reading', () => {
+  let windows = 0;
+  for (const { iso, rasi, g } of readingsOf2026()) {
+    const { vishtiFraction } = g.basis.factors.karana;
+    if (vishtiFraction < 0.15 || g.house === 8) continue; // Chandrashtamam days keep their own modifier
+    windows++;
+    assert.match(g.prediction, /\(Vishti\) karana .* is unsuitable for starting journeys/, `${iso} ${rasi} (Vishti ${vishtiFraction})`);
+  }
+  assert.ok(windows > 1000, `only ${windows} Vishti readings in the year`);
+});
+
+test('Janma Tara stars are named even when another star of the rasi is in Vipat, Pratyak or Naidhana', () => {
+  let cases = 0;
+  for (const { iso, rasi, g } of readingsOf2026()) {
+    const janma = g.stars.filter((s) => s.rating === 'mixed');
+    if (!janma.length || !g.stars.some((s) => s.rating === 'caution')) continue;
+    cases++;
+    for (const star of janma) {
+      assert.ok(g.prediction.includes(`${star.nakshatra} (Janma — pace yourself)`), `${iso} ${rasi}: ${star.nakshatra} missing in "${g.prediction}"`);
+    }
+  }
+  assert.ok(cases > 100, `only ${cases} Janma-with-caution readings in the year`);
+});
+
+test('Prathamai holding a quarter of the day is in the reading when there is no Vishti window', () => {
+  let cases = 0;
+  for (const { iso, rasi, g } of readingsOf2026()) {
+    const { tithi, karana } = g.basis.factors;
+    if (tithi.prathamaiFraction < 0.25 || karana.vishtiFraction >= 0.15 || g.house === 8) continue;
+    cases++;
+    assert.match(g.prediction, /Prathamai tithi is avoided for major new beginnings/, `${iso} ${rasi}`);
+  }
+  assert.ok(cases > 100, `only ${cases} Prathamai readings in the year`);
+});
+
+test('a house reading that points the other way from the score is followed by a bridging sentence', () => {
+  const favourable = new Set([1, 3, 6, 7, 10, 11]);
+  let toGood = 0;
+  let toCaution = 0;
+  for (const { iso, rasi, g } of readingsOf2026()) {
+    const good = /Even so, the rest of the day's Panchangam is supportive/.test(g.prediction);
+    const caution = /However, unfavourable Panchangam influences today/.test(g.prediction);
+    const compositeNegative = g.basis.factors.total < 0;
+    assert.equal(good, !favourable.has(g.house) && g.score > 0, `${iso} ${rasi} (house ${g.house}, score ${g.score})`);
+    // Negative only through the Chandrashtamam cap: the Chandrashtamam sentence explains it, no bridge.
+    assert.equal(caution, favourable.has(g.house) && compositeNegative, `${iso} ${rasi} (house ${g.house}, total ${g.basis.factors.total})`);
+    if (caution) assert.ok(g.score < 0, `${iso} ${rasi}`);
+    toGood += good;
+    toCaution += caution;
+  }
+  assert.ok(toGood > 0 && toCaution > 0, `${toGood} / ${toCaution}`);
+});
+
+test('no reading of the year says "at tomorrow"', () => {
+  let nextDay = 0;
+  for (const { iso, rasi, g } of readingsOf2026()) {
+    assert.doesNotMatch(g.prediction, /\bat tomorrow\b/, `${iso} ${rasi}`);
+    assert.doesNotMatch(g.headline, /\bat tomorrow\b/, `${iso} ${rasi}`);
+    if (/tomorrow at \d/.test(g.prediction)) nextDay++;
+  }
+  assert.ok(nextDay > 0, 'expected some changes after midnight ("tomorrow at …")');
+});
+
+test('Chandrashtamam shorter than an hour is mentioned but does not turn a good day to -1', () => {
+  const hour = 3_600_000;
+  const dayTimes = { sunriseMs: 0, sunsetMs: 12 * hour, nextSunriseMs: 24 * hour };
+  const whole = (index) => [{ index, name: 'x', endMs: null }];
+  // மேஷம் on a Tuesday (own lord), day star Ayilyam (Parama Mitra / Mitra for Ashwini / Bharani),
+  // Panchami, a good yoga, Bavam karana: the composite is positive although the Moon is in the 9th.
+  const panchanga = { iso: '2026-01-06', weekday: 2, nakshatra: whole(8), tithi: whole(4), yoga: whole(1), karana: whole(1) };
+  const reading = (minutes) => generateRasiPalan(
+    0, [{ index: 7, name: 'x', endMs: minutes * 60_000 }, { index: 8, name: 'x', endMs: null }], dayTimes, () => 'T', 'en', null, panchanga,
+  );
+
+  const brief = reading(30);
+  assert.equal(brief.house, 9);
+  assert.equal(brief.isChandrashtamam, true);
+  assert.equal(brief.chandrashtamam.state, 'until');
+  assert.match(brief.prediction, /Chandrashtamam lasts until T/);
+  assert.ok(brief.basis.factors.total > 0, `composite ${brief.basis.factors.total}`);
+  assert.equal(brief.score, 1);
+
+  // Two hours of it still caps the day at -1.
+  const longer = reading(120);
+  assert.ok(longer.basis.factors.total > 0, `composite ${longer.basis.factors.total}`);
+  assert.equal(longer.score, -1);
 });
 
 test('GET /api/panchangam returns all 12 generated readings and validates date', async () => {

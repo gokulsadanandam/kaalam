@@ -41,7 +41,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import process from 'node:process';
 import { pathToFileURL } from 'node:url';
-import { computeAstroPanchangam, moonPosition, namesFor, RASI_NAMES } from './lib/panchangam.js';
+import { computeAstroPanchangam, localizeAstroPanchangam, moonPosition, namesFor, RASI_NAMES } from './lib/panchangam.js';
 import { generateRasiPalan, gocharaTable } from './lib/rasiPalanGenerator.js';
 import { diffScore } from './lib/compare.js';
 import { createStore } from './lib/store.js';
@@ -464,11 +464,15 @@ function localMs(dayInfo, minutesOfDay, offset = IST_OFFSET) {
 /**
  * "3:53 PM", or "நாளை 4:58 AM" / "tomorrow 4:58 AM" on the next calendar day.
  * Truncated to the minute in which the change happens, as almanacs print it.
+ * `at: true` is the form used inside an English sentence: "at 3:53 PM" /
+ * "tomorrow at 4:58 AM" (Tamil is the same either way).
  */
-function formatInstant(ms, dayInfo, lang = 'ta', offset = IST_OFFSET) {
+function formatInstant(ms, dayInfo, lang = 'ta', offset = IST_OFFSET, { at = false } = {}) {
   const minutes = Math.floor((ms - localMs(dayInfo, 0, offset)) / 60_000);
-  if (minutes < 1440) return formatClock(minutes);
-  return `${lang === 'en' ? 'tomorrow' : 'நாளை'} ${formatClock(minutes)}`;
+  const clock = formatClock(minutes);
+  if (lang === 'en' && at) return minutes < 1440 ? `at ${clock}` : `tomorrow at ${clock}`;
+  if (minutes < 1440) return clock;
+  return `${lang === 'en' ? 'tomorrow' : 'நாளை'} ${clock}`;
 }
 
 /** "அனுஷம் 11:38 AM வரை, பின்பு கேட்டை" / "Anusham until 11:38 AM, then Kettai" */
@@ -496,9 +500,11 @@ function sunMsOn(dayInfo, lat, lon, timeZone) {
 /**
  * Day times and computeAstroPanchangam() for a local day, memoised so the
  * previous day (used for the reading's day-to-day shift) is computed once.
+ * The astronomy does not depend on the language, so neither does the key:
+ * names here are Tamil, and localizeAstroPanchangam() renames them on read.
  */
-function rawPanchangamFor(dayInfo, lat, lon, lang, timeZone) {
-  const key = `${dayInfo.iso}|${lat.toFixed(2)}|${lon.toFixed(2)}|${timeZone}|${lang}`;
+function rawPanchangamFor(dayInfo, lat, lon, timeZone) {
+  const key = `${dayInfo.iso}|${lat.toFixed(2)}|${lon.toFixed(2)}|${timeZone}`;
   if (rawPanchangamCache.has(key)) return rawPanchangamCache.get(key);
   const today = sunMsOn(dayInfo, lat, lon, timeZone);
   const tomorrow = sunMsOn(shiftDay(dayInfo, 1), lat, lon, timeZone);
@@ -509,7 +515,7 @@ function rawPanchangamFor(dayInfo, lat, lon, lang, timeZone) {
     sunsetMsForDaysAgo: (n) => sunMsOn(shiftDay(dayInfo, -n), lat, lon, timeZone).sunsetMs,
     gregorianYear: dayInfo.year,
     gregorianMonth: dayInfo.month,
-    lang,
+    lang: 'ta',
   });
   const result = { times, astro };
   if (rawPanchangamCache.size > 200) rawPanchangamCache.clear();
@@ -529,9 +535,10 @@ function computeAstroDay(dayInfo, lat, lon, lang = 'ta', timeZone = CONFIG.newsT
 
   // Every instant is absolute (UTC ms); only display uses this day's offset.
   const offset = offsetForDay(dayInfo, timeZone);
-  const raw = rawPanchangamFor(dayInfo, lat, lon, lang, timeZone);
+  const raw = rawPanchangamFor(dayInfo, lat, lon, timeZone);
   if (!raw) return null;
-  const { times, astro } = raw;
+  const { times } = raw;
+  const astro = localizeAstroPanchangam(raw.astro, lang);
 
   const describe = (spans) => describeSpans(spans, dayInfo, times.nextSunriseMs, lang, offset);
   // [{ name, until }]: `until` is the display time the value ends, or null if it lasts past next sunrise.
@@ -578,12 +585,14 @@ function computeAstroDay(dayInfo, lat, lon, lang = 'ta', timeZone = CONFIG.newsT
     : null;
 
   const formatTime = (ms) => formatInstant(ms, dayInfo, lang, offset);
+  // In-sentence form ("at 3:53 PM", "tomorrow at 4:58 AM") for the reading's transition sentences.
+  formatTime.at = (ms) => formatInstant(ms, dayInfo, lang, offset, { at: true });
   const minutesOfDay = (ms) => (ms - localMs(dayInfo, 0, offset)) / 60_000;
   // The previous day's Panchangam lets the reading say what shifted since yesterday.
   const prevDay = shiftDay(dayInfo, -1);
   let prevRaw = null;
   try {
-    prevRaw = rawPanchangamFor(prevDay, lat, lon, lang, timeZone);
+    prevRaw = rawPanchangamFor(prevDay, lat, lon, timeZone);
   } catch {
     prevRaw = null;
   }

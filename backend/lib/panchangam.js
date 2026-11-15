@@ -236,7 +236,7 @@ function tamilDate(sunsetMsForDaysAgo, gregorianYear, gregorianMonth, n) {
   const yearBase = gregorianMonth <= 4 && monthIndex >= 8 ? gregorianYear - 1 : gregorianYear;
   const yearIndex = (((yearBase - TAMIL_YEAR_EPOCH) % 60) + 60) % 60;
 
-  return { year: n.years[yearIndex], month: n.months[monthIndex], monthIndex, day };
+  return { year: n.years[yearIndex], yearIndex, month: n.months[monthIndex], monthIndex, day };
 }
 
 /**
@@ -277,6 +277,27 @@ function computeAstroPanchangam({ sunriseMs, nextSunriseMs, sunsetMsForDaysAgo, 
 }
 
 /**
+ * The same Panchangam with every name in `lang`. Only names depend on the
+ * language, so one computed day serves both.
+ */
+function localizeAstroPanchangam(astro, lang = 'ta') {
+  const n = namesFor(lang);
+  const tithi = named(astro.tithi, (i) => tithiName(i, n));
+  const nakshatra = named(astro.nakshatra, (i) => n.nakshatras[i]);
+  const moonRasi = named(astro.moonRasi, (i) => n.rasis[i]);
+  return {
+    tamilDate: { ...astro.tamilDate, year: n.years[astro.tamilDate.yearIndex], month: n.months[astro.tamilDate.monthIndex] },
+    paksha: tithi[0].index < 15 ? n.waxing : n.waning,
+    tithi,
+    nakshatra,
+    yoga: named(astro.yoga, (i) => n.yogas[i]),
+    karana: named(astro.karana, (i) => karanaName(i, n)),
+    moonRasi,
+    chandrashtamam: chandrashtamam(moonRasi, nakshatra, n),
+  };
+}
+
+/**
  * Moon's sidereal (Lahiri) position at an instant: janma rasi, nakshatra and
  * pada for someone born then. Used by "find my rasi from birth details".
  */
@@ -298,6 +319,7 @@ function moonPosition(ms, lang = 'ta') {
 
 export {
   computeAstroPanchangam,
+  localizeAstroPanchangam,
   lahiriAyanamsa,
   moonPosition,
   namesFor,
