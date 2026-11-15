@@ -150,7 +150,7 @@ The response also carries computed data (older clients ignore these keys):
 | `gowri` | Gowri Panchangam ([lib/nallaNeram.js](backend/lib/nallaNeram.js)): sunrise→sunset and sunset→next sunrise each split into 8 equal slots, named by weekday (drikpanchang's tables): `[{ key, name, good, part: "day"\|"night", start, end, time }]` (16 entries). Amirdha, Dhanam, Uthi, Laabam and Sugam are good. Saturday night is published with Soram twice (and no Rogam); this is reproduced as published. |
 | `rahuKalam`, `yamagandam`, `kuligai` | Always calculated from real sunrise and sunset for the place (default Chennai). They don't depend on the scraper at all. Newspapers print fixed 6 AM-sunrise tables, so theirs can differ by a few minutes. |
 | `panchangam` | Calculated ([lib/panchangam.js](backend/lib/panchangam.js)): Sun and Moon apparent positions from `astronomy-engine`, true Lahiri ayanamsa (IAU 2006 precession + nutation; 23°15′00.658″ at 1956-03-21), values at sunrise with change times until the next sunrise. Sunrise/sunset by rigorous search (upper limb, standard refraction; [lib/time.js](backend/lib/time.js)). Matches drikpanchang.com to the minute. Printed calendars using the Vakya system (e.g. Daily Thanthi, Maha Calendar) can differ by up to about an hour for nakshatram. The Tamil month follows the sunset rule, so Thai 1 / Chithirai 1 land on Pongal / Tamil New Year. |
-| `generated` | Original text ([lib/rasiPalanGenerator.js](backend/lib/rasiPalanGenerator.js)) from Chandra Gochara: the house the Moon occupies counted from the rasi. Houses 1, 3, 6, 7, 10, 11 are favourable; 8 is சந்திராஷ்டமம். If the Moon changes rasi in the day, the reading follows the Moon that holds most of the Panchangam day (sunrise to next sunrise — a change before about 6 PM means the new sign rules), and mentions the earlier part ("2:19 PM வரை நிலைமை சாதகமாக இருக்கும்"). No third-party text, so no copyright issue — but it is templated: the same house gives the same text. It uses the Moon alone, so it will not match newspaper or calendar astrologers (who weigh other planets too) day by day; e.g. the Maha Calendar's one-word palan does not follow any Moon-house rule (on 12 Nov 2026 Mesham, in chandrashtamam, is "அன்பு"). |
+| `generated` | Original text ([lib/rasiPalanGenerator.js](backend/lib/rasiPalanGenerator.js)), based on Chandra Gochara: the house the Moon occupies counted from the rasi. Houses 1, 3, 6, 7, 10, 11 are favourable; 8 is சந்திராஷ்டமம். If the Moon changes rasi in the day, the reading follows the Moon that holds most of the Panchangam day (sunrise to next sunrise — a change before about 6 PM means the new sign rules), and mentions the earlier part ("2:19 PM வரை நிலைமை சாதகமாக இருக்கும்"). The day's Panchangam refines it ([lib/rasiFactors.js](backend/lib/rasiFactors.js)), each factor averaged over the part of the day it holds: **40%** Gochara, **30%** Tara Bala (the day's star counted from each of the rasi's stars, weighted by padas), **15%** tithi (Nanda … Purna; Ashtami, Rikta, Amavasai adverse) and yoga (Vishkambha, Atiganda, Soolam, Gandam, Vyaghatham, Vajram, Vyatheepatham, Parigam, Vaidhruthi adverse), **10%** the weekday lord's natural friendship with the rasi lord, **5%** karana (Vishti/Bhadrai and the fixed karanas adverse). `score` is the composite (-2, -1, +1, +2; never 0); Chandrashtamam forces -2 (or at most -1 for part of the day). `summary` is the house's word unless the composite points the other way, in which case it is the tone word. The text is the house reading in one of four phrasings — picked from the date so consecutive days never repeat — followed by a Tara Bala sentence and one Panchangam sentence for the factor that shifted most since the previous day (`basis.factors.dominant`), which also adds a headline suffix when no Moon change or Chandrashtamam is in the headline. `stars` gives each of the rasi's stars its Tara for the day (`note`: "Janma Tara — mixed; Sampat from 11:29 PM"). No third-party text, so no copyright issue. Transits of the other planets are not used, so it will not match newspaper or calendar astrologers day by day; e.g. the Maha Calendar's one-word palan does not follow any Moon-house rule (on 12 Nov 2026 Mesham, in chandrashtamam, is "அன்பு"). When there is no newspaper text, today's `prediction` is this reading (with `isFallback: true`) rather than a fixed placeholder. |
 | `diffScore`, `diff` | [lib/compare.js](backend/lib/compare.js). `null` when there is no scraped prediction. `score` is 0 (same message) to 1 (opposite messages): half the gap between the generated tone (`score / 2`) and the scraped tone (Tamil favourable / cautionary word stems), plus 0.3 if the two disagree about சந்திராஷ்டமம். `level`: `agree` < 0.3 ≤ `partial` < 0.55 ≤ `disagree`. `confidence` is `low` when the scraped text has fewer than 2 tone words. |
 
 **Choosing which prediction to show:** the widget and the reading screen do this in
@@ -214,7 +214,16 @@ what the computed reading is based on:
 },
 "generated": { …, "basis": { "moon": [ { "rasi": "விருச்சிகம்", "rasiIndex": 7, "house": 1, "until": "2:19 PM" },
                                       { "rasi": "தனுசு", "rasiIndex": 8, "house": 2, "until": null } ],
-                             "ruling": 1 } },
+                             "ruling": 1,
+                             "factors": { "weights": { "gochara": 0.4, "tara": 0.3, "tithiYoga": 0.15, "weekday": 0.1, "karana": 0.05 },
+                                          "values": { "gochara": -0.2, "tara": 0.25, … }, "contributions": { … },
+                                          "total": 0.05, "score": 1,
+                                          "dominant": { "factor": "weekday", "change": 0.1, "direction": 1 },
+                                          "previous": { "values": { … }, "total": … },
+                                          "tara": { "dayStar": "மூலம்", "stars": [ … ] },
+                                          "tithi": { … }, "yoga": { … }, "weekday": { … }, "karana": { … } } },
+               "stars": [ { "nakshatra": "விசாகம்", "padas": [4], "taraName": "சம்பத்", "rating": "good",
+                            "note": "சம்பத் தாரை — சாதகம்", "changes": [] }, … ] },
 "gochara": [ { "house": 1, "summary": "நலம்", "score": 1 }, …12 rows ]
 ```
 
@@ -230,7 +239,10 @@ what the computed reading is based on:
 - `generated.basis` and `gochara` explain the computed reading: the Moon's
   sign(s) during the day with each one's house from the rasi, which one decided
   (`ruling`, the sign holding most of sunrise → next sunrise), and the
-  Chandra Gochara rule table.
+  Chandra Gochara rule table. `generated.basis.factors` breaks down the
+  composite score (each factor's value from -1 to +1, its weighted
+  contribution, the previous day's values and the dominant shift), and
+  `generated.stars` gives the Tara Bala for each of the rasi's stars.
 - `/api/panchangam` adds `sheet: { words: { mesham: …, … }, english: { … } }`
   and `sheetWord` / `scraped` (excerpt object) per rasi.
 - The morning cron archives every configured paper each day, and keeps

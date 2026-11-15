@@ -242,23 +242,27 @@ function timeLabelsToEnglish(text) {
 // ---------------------------------------------------------------------------
 // Localised fallbacks — shown when every source fails or a layout changes.
 // The widget flags these with `isFallback: true` so the UI can show a badge.
+// Today's fallback is the day's computed reading when there is one, so it
+// changes from day to day; the generic text is only for when that fails too.
 // ---------------------------------------------------------------------------
 
 const FALLBACK = Object.freeze({
-  prediction: (rasi) =>
-    `${rasi.tamil} ராசி அன்பர்களே, இன்றைய விரிவான ராசி பலன் தற்போது கிடைக்கவில்லை. ` +
-    'அமைதியான மனதுடன் செயல்படுங்கள்; முக்கிய முடிவுகளை நல்ல நேரத்தில் எடுங்கள். ' +
-    'சிறிது நேரத்தில் தகவல் தானாகப் புதுப்பிக்கப்படும்.',
+  prediction: (rasi, generated = null) => (generated && generated.prediction
+    ? generated.prediction
+    : `${rasi.tamil} ராசி அன்பர்களே, இன்றைய விரிவான ராசி பலன் தற்போது கிடைக்கவில்லை. ` +
+      'அமைதியான மனதுடன் செயல்படுங்கள்; முக்கிய முடிவுகளை நல்ல நேரத்தில் எடுங்கள். ' +
+      'சிறிது நேரத்தில் தகவல் தானாகப் புதுப்பிக்கப்படும்.'),
   otherDay: (rasi) => `${rasi.tamil}: இந்த தேதிக்கான செய்தித்தாள் ராசி பலன் கிடைக்கவில்லை.`,
   nallaNeram: 'நாட்காட்டியில் சரிபார்க்கவும்',
   rahuKalam: 'கணக்கிட இயலவில்லை',
 });
 
 const FALLBACK_EN = Object.freeze({
-  prediction: (rasi) =>
-    `Dear ${rasi.english} natives, today's detailed reading is not available yet. ` +
-    'Stay calm and take important decisions during the good time. ' +
-    'It will update automatically shortly.',
+  prediction: (rasi, generated = null) => (generated && generated.prediction
+    ? generated.prediction
+    : `Dear ${rasi.english} natives, today's detailed reading is not available yet. ` +
+      'Stay calm and take important decisions during the good time. ' +
+      'It will update automatically shortly.'),
   otherDay: (rasi) => `${rasi.english}: no newspaper reading is available for this date.`,
   nallaNeram: 'Check your calendar',
   rahuKalam: 'Could not be calculated',
@@ -480,6 +484,38 @@ function describeSpans(spans, dayInfo, nextSunriseMs, lang = 'ta', offset = IST_
 }
 
 const astroCache = new Map();
+const rawPanchangamCache = new Map();
+
+/** Sunrise/sunset (UTC ms) of a local day, or null near the poles. */
+function sunMsOn(dayInfo, lat, lon, timeZone) {
+  const o = offsetForDay(dayInfo, timeZone);
+  const sun = solarTimes(dayInfo, lat, lon, o);
+  return sun && { sunriseMs: localMs(dayInfo, sun.sunrise, o), sunsetMs: localMs(dayInfo, sun.sunset, o) };
+}
+
+/**
+ * Day times and computeAstroPanchangam() for a local day, memoised so the
+ * previous day (used for the reading's day-to-day shift) is computed once.
+ */
+function rawPanchangamFor(dayInfo, lat, lon, lang, timeZone) {
+  const key = `${dayInfo.iso}|${lat.toFixed(2)}|${lon.toFixed(2)}|${timeZone}|${lang}`;
+  if (rawPanchangamCache.has(key)) return rawPanchangamCache.get(key);
+  const today = sunMsOn(dayInfo, lat, lon, timeZone);
+  const tomorrow = sunMsOn(shiftDay(dayInfo, 1), lat, lon, timeZone);
+  if (!today || !tomorrow) return null;
+  const times = { sunriseMs: today.sunriseMs, sunsetMs: today.sunsetMs, nextSunriseMs: tomorrow.sunriseMs };
+  const astro = computeAstroPanchangam({
+    ...times,
+    sunsetMsForDaysAgo: (n) => sunMsOn(shiftDay(dayInfo, -n), lat, lon, timeZone).sunsetMs,
+    gregorianYear: dayInfo.year,
+    gregorianMonth: dayInfo.month,
+    lang,
+  });
+  const result = { times, astro };
+  if (rawPanchangamCache.size > 200) rawPanchangamCache.clear();
+  rawPanchangamCache.set(key, result);
+  return result;
+}
 
 /**
  * Tithi, nakshatram, yogam, karanam, chandrashtamam and Tamil date for a local
@@ -493,28 +529,9 @@ function computeAstroDay(dayInfo, lat, lon, lang = 'ta', timeZone = CONFIG.newsT
 
   // Every instant is absolute (UTC ms); only display uses this day's offset.
   const offset = offsetForDay(dayInfo, timeZone);
-  const sunMsOn = (d) => {
-    const o = offsetForDay(d, timeZone);
-    const sun = solarTimes(d, lat, lon, o);
-    return sun && { sunriseMs: localMs(d, sun.sunrise, o), sunsetMs: localMs(d, sun.sunset, o) };
-  };
-  const today = sunMsOn(dayInfo);
-  const tomorrow = sunMsOn(shiftDay(dayInfo, 1));
-  if (!today || !tomorrow) return null;
-
-  const times = {
-    sunriseMs: today.sunriseMs,
-    sunsetMs: today.sunsetMs,
-    nextSunriseMs: tomorrow.sunriseMs,
-  };
-
-  const astro = computeAstroPanchangam({
-    ...times,
-    sunsetMsForDaysAgo: (n) => sunMsOn(shiftDay(dayInfo, -n)).sunsetMs,
-    gregorianYear: dayInfo.year,
-    gregorianMonth: dayInfo.month,
-    lang,
-  });
+  const raw = rawPanchangamFor(dayInfo, lat, lon, lang, timeZone);
+  if (!raw) return null;
+  const { times, astro } = raw;
 
   const describe = (spans) => describeSpans(spans, dayInfo, times.nextSunriseMs, lang, offset);
   // [{ name, until }]: `until` is the display time the value ends, or null if it lasts past next sunrise.
@@ -562,9 +579,35 @@ function computeAstroDay(dayInfo, lat, lon, lang = 'ta', timeZone = CONFIG.newsT
 
   const formatTime = (ms) => formatInstant(ms, dayInfo, lang, offset);
   const minutesOfDay = (ms) => (ms - localMs(dayInfo, 0, offset)) / 60_000;
+  // The previous day's Panchangam lets the reading say what shifted since yesterday.
+  const prevDay = shiftDay(dayInfo, -1);
+  let prevRaw = null;
+  try {
+    prevRaw = rawPanchangamFor(prevDay, lat, lon, lang, timeZone);
+  } catch {
+    prevRaw = null;
+  }
+  const panchanga = {
+    iso: dayInfo.iso,
+    weekday: dayInfo.weekday,
+    nakshatra: astro.nakshatra,
+    tithi: astro.tithi,
+    yoga: astro.yoga,
+    karana: astro.karana,
+    previous: prevRaw && {
+      weekday: prevDay.weekday,
+      sunriseMs: prevRaw.times.sunriseMs,
+      nextSunriseMs: prevRaw.times.nextSunriseMs,
+      moonRasi: prevRaw.astro.moonRasi,
+      nakshatra: prevRaw.astro.nakshatra,
+      tithi: prevRaw.astro.tithi,
+      yoga: prevRaw.astro.yoga,
+      karana: prevRaw.astro.karana,
+    },
+  };
   const generated = {};
   RASIS.forEach((rasi, index) => {
-    generated[rasi.key] = generateRasiPalan(index, astro.moonRasi, times, formatTime, lang, minutesOfDay);
+    generated[rasi.key] = generateRasiPalan(index, astro.moonRasi, times, formatTime, lang, minutesOfDay, panchanga);
   });
 
   const result = { panchangam, generated, moonChange };
@@ -1135,7 +1178,7 @@ function buildPayload(rasi, day, scrape, panchangam, astroDay = null, { lang = '
     isToday,
     weekdayTamil: TAMIL_WEEKDAYS[day.weekday],
     weekday: (english ? ENGLISH_WEEKDAYS : TAMIL_WEEKDAYS)[day.weekday],
-    prediction: shownPaperText || (isToday ? fallback.prediction(rasi) : fallback.otherDay(rasi)),
+    prediction: shownPaperText || (isToday ? fallback.prediction(rasi, generated) : fallback.otherDay(rasi)),
     nallaNeram,
     nallaNeramSource: nalla ? nalla.source : null,
     rahuKalam: panchangam ? panchangam.rahuKalam : fallback.rahuKalam,

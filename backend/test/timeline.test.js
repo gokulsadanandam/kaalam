@@ -77,7 +77,7 @@ test('headline, Moon change and chandrashtamam timing (12 Nov 2026: Moon leaves 
   // rest of the Panchangam day, which therefore governs the reading.
   assert.equal(ta.generated.viruchigam.house, 2);
   assert.equal(ta.generated.viruchigam.headline, 'செலவுகளில் கவனம்; மதியம் வரை சாதகம்');
-  assert.match(ta.generated.viruchigam.prediction, /2:19 PM வரை நிலைமை சாதகமாக இருக்கும்\.$/);
+  assert.match(ta.generated.viruchigam.prediction, /2:19 PM வரை நிலைமை சாதகமாக இருக்கும்\. /);
   // Mesham's day is chandrashtamam until the afternoon: one clear headline, not two.
   assert.equal(ta.generated.mesham.headline, 'மதியம் வரை சந்திராஷ்டமம் — நிதானம் தேவை');
   // Rishabam enters chandrashtamam at 2:19 PM and it rules the rest of the day.

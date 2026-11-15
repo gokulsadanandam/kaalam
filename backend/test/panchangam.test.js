@@ -135,6 +135,50 @@ test('buildPayload adds panchangam, generated and diffScore without touching old
   assert.equal(noScrape.isFallback, true);
   assert.equal(noScrape.diffScore, null);
   assert.ok(noScrape.generated.prediction.includes('சந்திராஷ்டமம்'));
+  // Without newspaper text, today's fallback is the day's computed reading, not a fixed placeholder.
+  assert.equal(noScrape.prediction, noScrape.generated.prediction);
+});
+
+test('Tara Bala for Magaram\'s stars changes day to day (15–16 Nov 2026, Moon in Magaram both days)', () => {
+  const at = (iso, weekday) => computeAstroDay(day(iso, weekday), ...CHENNAI, 'en').generated.magaram;
+  const sun = at('2026-11-15', 0);
+  const mon = at('2026-11-16', 1);
+  assert.equal(sun.house, 1);
+  assert.equal(mon.house, 1);
+  // Uthiradam padas 2–4, Thiruvonam 1–4, Avittam 1–2.
+  assert.deepEqual(sun.stars.map((s) => [s.nakshatra, s.padas.join('')]), [['Uthiradam', '234'], ['Thiruvonam', '1234'], ['Avittam', '12']]);
+  // Day star Uthiradam, then Thiruvonam.
+  assert.deepEqual(sun.stars.map((s) => s.taraName), ['Janma', 'Parama Mitra', 'Mitra']);
+  assert.deepEqual(mon.stars.map((s) => s.taraName), ['Sampat', 'Janma', 'Parama Mitra']);
+  assert.match(sun.stars[0].note, /^Janma Tara — mixed; Sampat from 11:29 PM$/);
+
+  const f = sun.basis.factors;
+  assert.deepEqual(Object.values(f.weights), [0.4, 0.3, 0.15, 0.1, 0.05]);
+  assert.equal(f.weekday.relation, 'enemy'); // Sun to Saturn
+  assert.equal(mon.basis.factors.weekday.relation, 'enemy'); // Moon to Saturn
+  assert.equal(f.dominant.factor, 'weekday'); // Saturday (own lord) -> Sunday (enemy)
+  assert.notEqual(sun.prediction, mon.prediction);
+  assert.notEqual(sun.headline, mon.headline);
+  // Chandrashtamam still overrides the composite.
+  assert.equal(computeAstroDay(day('2026-11-11', 3), ...CHENNAI, 'en').generated.mesham.score, -2);
+});
+
+test('no rasi gets the same reading on two consecutive days, for a whole year', () => {
+  const start = Date.UTC(2026, 0, 1);
+  for (const lang of ['ta', 'en']) {
+    let previous = null;
+    for (let i = 0; i <= 365; i++) {
+      const d = new Date(start + i * 86_400_000);
+      const iso = d.toISOString().slice(0, 10);
+      const { generated } = computeAstroDay(day(iso, d.getUTCDay()), ...CHENNAI, lang);
+      for (const rasi of RASIS) {
+        const g = generated[rasi.key];
+        assert.ok([-2, -1, 1, 2].includes(g.score), `${iso} ${rasi.key} score ${g.score}`);
+        if (previous) assert.notEqual(g.prediction, previous[rasi.key].prediction, `${lang} ${iso} ${rasi.key} repeats the day before`);
+      }
+      previous = generated;
+    }
+  }
 });
 
 test('GET /api/panchangam returns all 12 generated readings and validates date', async () => {

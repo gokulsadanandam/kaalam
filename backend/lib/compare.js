@@ -6,7 +6,8 @@
  * what a reader takes away:
  *
  *   1. Tone, from -1 (cautionary) to +1 (favourable). The generated tone comes
- *      from its Chandra Gochara score; the scraped tone from a small lexicon
+ *      from its score (Chandra Gochara weighted with the day's Panchangam,
+ *      see lib/rasiFactors.js); the scraped tone from a small lexicon
  *      of Tamil favourable / cautionary word stems.
  *   2. Chandrashtamam: a factual flag that should agree on both sides.
  *
