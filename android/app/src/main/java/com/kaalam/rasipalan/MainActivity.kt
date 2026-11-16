@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.Gravity
+import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -23,10 +24,12 @@ import com.kaalam.rasipalan.data.AppLanguage
 import com.kaalam.rasipalan.data.Rasi
 import com.kaalam.rasipalan.data.RasiPalanRepository
 import com.kaalam.rasipalan.data.RasiPalanState
+import com.kaalam.rasipalan.data.TourScreen
 import com.kaalam.rasipalan.data.hasChosenRasi
 import com.kaalam.rasipalan.data.matches
 import com.kaalam.rasipalan.data.stars
 import com.kaalam.rasipalan.data.strings
+import com.kaalam.rasipalan.data.tourStrings
 import com.kaalam.rasipalan.ui.Accent
 import com.kaalam.rasipalan.ui.Kaalam
 import com.kaalam.rasipalan.ui.ReadingActivity
@@ -34,6 +37,8 @@ import com.kaalam.rasipalan.ui.dp
 import com.kaalam.rasipalan.ui.matchWidth
 import com.kaalam.rasipalan.ui.rounded
 import com.kaalam.rasipalan.ui.text
+import com.kaalam.rasipalan.ui.tour.AppTour
+import com.kaalam.rasipalan.ui.tour.TourStep
 import com.kaalam.rasipalan.widget.DailyRefresh
 import com.kaalam.rasipalan.widget.WidgetUpdater
 import kotlinx.coroutines.CancellationException
@@ -66,9 +71,16 @@ class MainActivity : ComponentActivity() {
     private var query = ""
     private lateinit var grid: LinearLayout
     private lateinit var continueButton: TextView
+    private var languageChip: View? = null
+    private var searchBox: View? = null
+    private var birthLink: View? = null
+    private var resumeTourAt = -1
+
+    private val tour by lazy { AppTour(this, TourScreen.PICKER, { language }, ::tourSteps) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        resumeTourAt = savedInstanceState?.getInt(AppTour.STATE_STEP, -1) ?: -1
         repository = RasiPalanRepository(applicationContext)
         DailyRefresh.ensureScheduled(applicationContext)
 
@@ -122,12 +134,13 @@ class MainActivity : ComponentActivity() {
                 background = rounded(Accent.WHITE, 16)
                 setPadding(dp(14), dp(6), dp(14), dp(6))
                 setOnClickListener { onLanguagePicked(other) }
-            })
+            }.also { languageChip = it })
         }, matchWidth())
         page.addView(text(s.pickerTitle, 32f, Kaalam.MAROON, bold = true), matchWidth(dp(8)))
         page.addView(text(s.pickerSubtitle, 16f, Kaalam.INK_SOFT), matchWidth(dp(8)))
 
         page.addView(EditText(this).apply {
+            searchBox = this
             hint = "🔍  ${s.searchHint}"
             setText(query)
             setSingleLine()
@@ -159,7 +172,7 @@ class MainActivity : ComponentActivity() {
             gravity = Gravity.CENTER
             setPadding(0, dp(8), 0, dp(8))
             setOnClickListener { findFromBirthDetails() }
-        }, matchWidth(dp(20)))
+        }.also { birthLink = it }, matchWidth(dp(20)))
 
         root.addView(ScrollView(this).apply { addView(page) }, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
 
@@ -172,6 +185,25 @@ class MainActivity : ComponentActivity() {
         root.addView(continueButton, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
             .apply { setMargins(dp(20), dp(8), dp(20), dp(16)) })
         updateContinue()
+        tour.startIfNeeded(resumeTourAt)
+        resumeTourAt = -1
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        tour.saveState(outState)
+    }
+
+    /** First-visit tour of the picker. */
+    private fun tourSteps(): List<TourStep> {
+        val t = tourStrings(language)
+        return listOf(
+            TourStep(t.pickerLanguage) { languageChip },
+            TourStep(t.pickerSearch) { searchBox },
+            TourStep(t.pickerGrid) { grid.getChildAt(0) },
+            TourStep(t.pickerBirth) { birthLink },
+            TourStep(t.pickerContinue) { continueButton },
+        )
     }
 
     private fun fillGrid() {

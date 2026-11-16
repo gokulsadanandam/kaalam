@@ -378,6 +378,8 @@ is for non-commercial use only.
 | 🔔 on a timing | Daily reminder 5 minutes before that period (asks for notification permission once) |
 | Pull down | Refresh |
 | **தமிழ் / English** (bottom) | App and widget language. The newspaper's text stays Tamil |
+| First visit to the picker, today screen and calendar sheet | A short guided tour ([ui/tour/](android/app/src/main/java/com/kaalam/rasipalan/ui/tour/)): the screen dims (~75%), each key control is spotlit in turn, and a card beside it (above or below, whichever fits) explains it with "2 / 5" progress and தவிர் / முந்தைய / அடுத்து (Skip / Back / Next / Done). Taps outside the card are blocked, Back steps back, the step survives rotation, and TalkBack reads only the card. Steps whose control is not on screen (e.g. the add-widget button once a widget is placed, the bells after the day's periods are over) are left out. Finishing or skipping stores the tour's version per screen in DataStore (`TourScreen` in [data/TourPrefs.kt](android/app/src/main/java/com/kaalam/rasipalan/data/TourPrefs.kt)); raise a screen's version to show its tour again after a major change. Texts are in [data/TourStrings.kt](android/app/src/main/java/com/kaalam/rasipalan/data/TourStrings.kt) |
+| **ⓘ செயலி அறிமுகத்தை மீண்டும் காண்க / Take the app tour again** (bottom of the today screen) | Replays the today-screen tour now; the picker and calendar tours show again on their next visit |
 
 **Widget sizes** (resize to switch): 2×2 shows now / until / next Nalla Neram
 and turns red during Rahu Kalam; 4×2 adds the headline; 4×4 adds the

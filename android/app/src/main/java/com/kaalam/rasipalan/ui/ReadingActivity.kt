@@ -33,6 +33,12 @@ import com.kaalam.rasipalan.data.RasiPalanRepository
 import com.kaalam.rasipalan.data.RasiPalanState
 import com.kaalam.rasipalan.data.RowStatus
 import com.kaalam.rasipalan.data.Strings
+import com.kaalam.rasipalan.data.TourScreen
+import com.kaalam.rasipalan.data.resetTours
+import com.kaalam.rasipalan.data.tourStrings
+import com.kaalam.rasipalan.ui.tour.AppTour
+import com.kaalam.rasipalan.ui.tour.SpotShape
+import com.kaalam.rasipalan.ui.tour.TourStep
 import com.kaalam.rasipalan.data.choosePrediction
 import com.kaalam.rasipalan.data.dayWord
 import com.kaalam.rasipalan.data.firstSentence
@@ -70,7 +76,16 @@ class ReadingActivity : ComponentActivity() {
     private lateinit var title: TextView
     private lateinit var subtitle: TextView
     private lateinit var widgetButton: ImageView
+    private lateinit var calendarButton: ImageView
     private lateinit var segmentsBox: LinearLayout
+    /** The Moon-transit / newspaper switch in the reading card (a tour target); null when absent. */
+    private var readingTabs: View? = null
+    /** Tour step to resume at after a configuration change, or -1. */
+    private var resumeTourAt = -1
+
+    private val tour by lazy {
+        AppTour(this, TourScreen.READING, { language }, ::tourSteps, onActiveChanged = { active -> refresher.isEnabled = !active })
+    }
     private lateinit var refresher: SwipeRefreshLayout
     private lateinit var content: LinearLayout
     private var loadJob: Job? = null
@@ -121,6 +136,7 @@ class ReadingActivity : ComponentActivity() {
         repository = RasiPalanRepository(applicationContext)
         intent.getStringExtra(EXTRA_DATE)?.let { extra -> runCatching { date = LocalDate.parse(extra) } }
         savedInstanceState?.getString(STATE_DATE)?.let { saved -> runCatching { date = LocalDate.parse(saved) } }
+        resumeTourAt = savedInstanceState?.getInt(AppTour.STATE_STEP, -1) ?: -1
 
         content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -152,6 +168,7 @@ class ReadingActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(STATE_DATE, date.toString())
+        tour.saveState(outState)
     }
 
     override fun onResume() {
@@ -191,7 +208,7 @@ class ReadingActivity : ComponentActivity() {
             setOnClickListener { WidgetPinning.requestPin(this@ReadingActivity) }
             visibility = if (canAddWidget()) View.VISIBLE else View.GONE
         }
-        val calendarButton = ImageView(this@ReadingActivity).apply {
+        calendarButton = ImageView(this@ReadingActivity).apply {
             setImageResource(R.drawable.ic_calendar)
             setColorFilter(Kaalam.IVORY)
             background = android.graphics.drawable.GradientDrawable().apply {
@@ -222,6 +239,38 @@ class ReadingActivity : ComponentActivity() {
     }
 
     private fun canAddWidget() = WidgetPinning.canRequestPin(this) && !WidgetPinning.isPlaced(this)
+
+    // ---------------------------------------------------------------------
+    // First-visit tour (header first, then down the page)
+    // ---------------------------------------------------------------------
+
+    private fun tourSteps(): List<TourStep> {
+        val t = tourStrings(language)
+        return listOf(
+            TourStep(t.readingRasi) { title },
+            TourStep(t.readingDays) { segmentsBox },
+            TourStep(t.readingCalendar, SpotShape.CIRCLE) { calendarButton },
+            TourStep(t.readingWidget, SpotShape.CIRCLE) { widgetButton },
+            TourStep(t.readingNow) { nowCard },
+            TourStep(t.readingTabs) { readingTabs },
+            TourStep(t.readingBells, SpotShape.CIRCLE) { firstBell() },
+        )
+    }
+
+    /** The first reminder bell in the timings card (rebuilt every 30 s, so looked up each time). */
+    private fun firstBell(): View? {
+        val found = ArrayList<View>()
+        timingsCard?.findViewsWithText(found, s.bellHint, View.FIND_VIEWS_WITH_CONTENT_DESCRIPTION)
+        return found.firstOrNull { it is ImageView }
+    }
+
+    /** "Take the app tour again": every screen's tour shows again, starting with this one now. */
+    private fun replayTour() {
+        lifecycleScope.launch {
+            applicationContext.resetTours()
+            tour.start()
+        }
+    }
 
     private fun showHowCalculated(r: RasiPalanResponse) = showGocharaExplainer(r, rasi, language)
 
@@ -384,6 +433,7 @@ class ReadingActivity : ComponentActivity() {
         val p = r.panchangam
         updateHeader(tamilDay = p?.takeIf { it.tamilMonth.isNotBlank() }?.let { "${it.tamilMonth} ${it.tamilDay}" })
         content.removeAllViews()
+        readingTabs = null
 
         nowCard = if (r.isToday && timeline != null) {
             LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }.also { content.addView(it, cardParams(16)) }
@@ -399,6 +449,9 @@ class ReadingActivity : ComponentActivity() {
         content.addView(pillButton(s.openCalendar, filled = true) { openCalendar() }, cardParams(16))
         renderLiveParts()
         addFooter(r)
+        // The full screen is up: run the first-visit tour (or resume it after rotation).
+        tour.startIfNeeded(resumeTourAt)
+        resumeTourAt = -1
     }
 
     /** The now card and the timings statuses depend on the clock: re-rendered every 30 s. */
@@ -620,7 +673,7 @@ class ReadingActivity : ComponentActivity() {
                     tabTouched = true
                     showNewspaper = index == 1
                     response?.let { showResponse(it) }
-                },
+                }.also { readingTabs = it },
                 matchWidth(dp(14)),
             )
         }
@@ -754,6 +807,11 @@ class ReadingActivity : ComponentActivity() {
 
     private fun addFooter(r: RasiPalanResponse?) {
         content.addView(languageToggle(language) { onLanguagePicked(it) }, cardParams(20))
+        content.addView(text(tourStrings(language).replay, 14f, Kaalam.MAROON, bold = true).apply {
+            gravity = Gravity.CENTER
+            setPadding(0, dp(10), 0, dp(10))
+            setOnClickListener { replayTour() }
+        }, cardParams(8))
         content.addView(LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL

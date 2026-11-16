@@ -40,6 +40,10 @@ import com.kaalam.rasipalan.data.rangeDots
 import com.kaalam.rasipalan.data.clockDots
 import com.kaalam.rasipalan.data.southChartCell
 import com.kaalam.rasipalan.data.strings
+import com.kaalam.rasipalan.data.TourScreen
+import com.kaalam.rasipalan.data.tourStrings
+import com.kaalam.rasipalan.ui.tour.AppTour
+import com.kaalam.rasipalan.ui.tour.TourStep
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -74,6 +78,18 @@ class CalendarActivity : ComponentActivity() {
     private lateinit var content: LinearLayout
     private var pad: View? = null
     private var loadJob: Job? = null
+
+    /** Tour targets on the current page (rebuilt with every page). */
+    private var header: View? = null
+    private var timingsBox: View? = null
+    private var rasiPalanBox: View? = null
+    private var myRasiBox: View? = null
+    private var gowriBox: View? = null
+    private var resumeTourAt = -1
+
+    private val tour by lazy {
+        AppTour(this, TourScreen.CALENDAR, { language }, ::tourSteps, onActiveChanged = { active -> refresher.isEnabled = !active })
+    }
     private var animating = false
 
     private val s: Strings get() = strings(language)
@@ -98,6 +114,7 @@ class CalendarActivity : ComponentActivity() {
         repository = RasiPalanRepository(applicationContext)
         (savedInstanceState?.getString(EXTRA_DATE) ?: intent.getStringExtra(EXTRA_DATE))
             ?.let { runCatching { date = LocalDate.parse(it) } }
+        resumeTourAt = savedInstanceState?.getInt(AppTour.STATE_STEP, -1) ?: -1
 
         content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -115,7 +132,7 @@ class CalendarActivity : ComponentActivity() {
                 orientation = LinearLayout.VERTICAL
                 fitsSystemWindows = true
                 setBackgroundColor(Desk.BACKGROUND)
-                addView(buildHeader(), matchWidth())
+                addView(buildHeader().also { header = it }, matchWidth())
                 addView(refresher, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
             },
         )
@@ -129,11 +146,25 @@ class CalendarActivity : ComponentActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putString(EXTRA_DATE, date.toString())
+        tour.saveState(outState)
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
-        swipe.onTouchEvent(ev)
+        // No page turns under the tour overlay.
+        if (!tour.isActive) swipe.onTouchEvent(ev)
         return super.dispatchTouchEvent(ev)
+    }
+
+    /** First-visit tour of the calendar sheet. */
+    private fun tourSteps(): List<TourStep> {
+        val t = tourStrings(language)
+        return listOf(
+            TourStep(t.calendarPages) { header },
+            TourStep(t.calendarTimings) { timingsBox },
+            TourStep(t.calendarRasiPalan) { rasiPalanBox },
+            TourStep(t.calendarMyRasi) { myRasiBox },
+            TourStep(t.calendarGowri) { gowriBox },
+        )
     }
 
     // --- Header: ‹  title / date  › ------------------------------------------
@@ -253,9 +284,10 @@ class CalendarActivity : ComponentActivity() {
 
     private fun show(d: PanchangamDayResponse, direction: Int) {
         content.removeAllViews()
+        gowriBox = null
         val newPad = buildPad(d)
         content.addView(newPad, cardParams(6))
-        if (d.gowri.isNotEmpty()) content.addView(gowriTable(d), cardParams(18))
+        if (d.gowri.isNotEmpty()) content.addView(gowriTable(d).also { gowriBox = it }, cardParams(18))
         content.addView(text(s.calendarNote, 12f, Kaalam.INK_SOFT).apply { gravity = Gravity.CENTER }, cardParams(16))
         pad = newPad
         scroll.scrollTo(0, 0)
@@ -266,6 +298,8 @@ class CalendarActivity : ComponentActivity() {
             newPad.animate().alpha(1f).translationY(0f).setDuration(220).start()
         }
         prefetchAround(LocalDate.parse(d.date))
+        tour.startIfNeeded(resumeTourAt)
+        resumeTourAt = -1
     }
 
     // --- The pad: binding, sheet, pages underneath ---------------------------------
@@ -301,11 +335,11 @@ class CalendarActivity : ComponentActivity() {
         introLine(d)?.let { addView(text(it, 13f, Kaalam.INK), matchWidth(dp(2))) }
         addView(dateBoxes(d), matchWidth(dp(10)))
         panchangamText(d)?.let { addView(boxed(text(it, 13f, Kaalam.INK)), matchWidth(dp(8))) }
-        addView(timingsTable(d), matchWidth(dp(8)))
+        addView(timingsTable(d).also { timingsBox = it }, matchWidth(dp(8)))
         addView(factsRow(d), matchWidth(dp(8)))
         if (d.calendar?.planets?.isNotEmpty() == true) addView(chart(d), matchWidth(dp(12)))
-        addView(rasiPalan(d), matchWidth(dp(12)))
-        myRasiStrip(d)?.let { addView(it, matchWidth(dp(12))) }
+        addView(rasiPalan(d).also { rasiPalanBox = it }, matchWidth(dp(12)))
+        myRasiBox = myRasiStrip(d)?.also { addView(it, matchWidth(dp(12))) }
     }
 
     /** "12 ■ 11 ■ 2026" in tall serif numerals, coloured like the printed sheets. */
