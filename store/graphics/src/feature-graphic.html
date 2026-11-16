@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- Source for store/graphics/feature-graphic.png (1024 × 500). Render with headless Chrome
+     at 1024 × 500 (see store/listing.md); it uses two of the store screenshots. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        margin: 0;
+      }
+      #graphic {
+        position: relative;
+        width: 1024px;
+        height: 500px;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 82% 18%, rgba(226, 192, 98, 0.22), transparent 45%),
+          linear-gradient(135deg, #8c2533, #5c1520);
+        color: #fff;
+        font-family: 'Segoe UI', 'Nirmala UI', Roboto, sans-serif;
+      }
+      .text {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 60px;
+        width: 500px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        margin-bottom: 26px;
+      }
+      .mark {
+        width: 84px;
+        height: 84px;
+        border-radius: 22px;
+        overflow: hidden;
+        box-shadow: 0 0 0 2px rgba(226, 192, 98, 0.45);
+      }
+      .mark img {
+        display: block;
+        width: 84px;
+        height: 84px;
+      }
+      .name {
+        font-size: 54px;
+        font-weight: 800;
+        letter-spacing: -0.01em;
+        line-height: 1;
+      }
+      .name small {
+        display: block;
+        margin-top: 6px;
+        font-family: 'Nirmala UI', sans-serif;
+        font-size: 26px;
+        font-weight: 700;
+        color: #e2c062;
+      }
+      h1 {
+        margin: 0 0 14px;
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1.15;
+      }
+      p {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 1.45;
+        opacity: 0.9;
+      }
+      .phone {
+        position: absolute;
+        width: 230px;
+        border-radius: 30px;
+        padding: 8px;
+        background: #1c0d10;
+        box-shadow: 0 30px 60px rgba(20, 0, 5, 0.5);
+      }
+      .phone img {
+        display: block;
+        width: 100%;
+        border-radius: 23px;
+      }
+      .back {
+        left: 600px;
+        top: 66px;
+        transform: rotate(-6deg);
+      }
+      .front {
+        left: 762px;
+        top: 36px;
+        transform: rotate(5deg);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="graphic">
+      <div class="text">
+        <div class="brand">
+          <div class="mark"><img src="glyph.svg" alt="" /></div>
+          <div class="name">Kaalam<small>காலம்</small></div>
+        </div>
+        <h1>Daily Rasi Palan &amp; Panchangam</h1>
+        <p>Rahu Kalam · Nalla Neram · Home-screen widget<br />In Tamil and English</p>
+      </div>
+      <div class="phone back"><img src="../screenshots/04-calendar.png" alt="" /></div>
+      <div class="phone front"><img src="../screenshots/01-today.png" alt="" /></div>
+    </div>
+  </body>

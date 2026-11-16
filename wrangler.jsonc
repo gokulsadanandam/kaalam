@@ -1,0 +1,12 @@
+// Cloudflare Worker that serves the static website in site/ (home page and privacy policy),
+// the same setup as Tuitly. Cloudflare's Git integration runs `npx wrangler deploy` on every
+// push to main; /privacy serves site/privacy.html.
+{
+  "name": "kaalam",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./site",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  }
+}

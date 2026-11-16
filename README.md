@@ -425,6 +425,27 @@ target `gokulsadanandam/kaalam` and stop if the active account can't manage it.
 Run them with `powershell -ExecutionPolicy Bypass -File scripts\<name>.ps1`.
 Edge Function secrets (`CRON_SECRET`, …) stay in Supabase; deploys don't touch them.
 
+## Website, privacy policy and Play Store listing
+
+- **[site/](site/)**: the home page, privacy policy and 404 page, served by a
+  Cloudflare Worker with static assets (same setup as Tuitly; config in
+  [wrangler.jsonc](wrangler.jsonc)). `/privacy` serves `privacy.html`. Once
+  connected, every push to `main` redeploys it.
+  **One-time setup:** Cloudflare dashboard → **Workers & Pages → Create →
+  Import a repository** → `gokulsadanandam/kaalam`; project name `kaalam`;
+  production branch `main`; build command empty; deploy command
+  `npx wrangler deploy`; optionally set **Build watch paths** to `site/*` and
+  `wrangler.jsonc`. The site is then at
+  `https://kaalam.gokulsadanandam.workers.dev` (privacy policy at `/privacy`).
+- **[store/listing.md](store/listing.md)**: Play Console text (name, short and
+  full description), store settings, every App content answer (content rating,
+  target audience, Data safety, ads, trader status) and what to change before
+  monetising.
+- **[store/graphics/](store/graphics/)**: `icon-512.png`, `feature-graphic.png`
+  (1024 × 500) and eight 1080 × 1920 phone screenshots, with the HTML/SVG
+  sources in `store/graphics/src/`. If the privacy practices change (for example
+  ads), update `site/privacy.html` and the Data safety form together.
+
 ## Design notes
 
 - **The receiver overrides `onUpdate` without calling `super`.** Glance's
