@@ -9,7 +9,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.GestureDetector
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -60,11 +62,12 @@ import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import kotlin.math.abs
 
 /**
  * The today screen (and any other date): what is happening now, chandrashtamam
  * for my rasi, the reading (Moon-transit or newspaper), the day's timings with
- * reminder bells, and the Panchangam. நேற்று / இன்று / நாளை switch days, the
+ * reminder bells, and the Panchangam. நேற்று / இன்று / நாளை or a sideways swipe switch days, the
  * date opens a calendar, the rasi name changes rasi, pull down to refresh.
  */
 class ReadingActivity : ComponentActivity() {
@@ -305,6 +308,58 @@ class ReadingActivity : ComponentActivity() {
             },
             matchWidth(),
         )
+    }
+
+    /**
+     * A sideways swipe changes the day, as on the calendar page: left for the
+     * next day, right for the previous one. Mostly-horizontal, fast and long
+     * enough, so vertical scrolling and pull-to-refresh are unaffected.
+     */
+    private val swipe by lazy {
+        GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onFling(e1: MotionEvent?, e2: MotionEvent, velocityX: Float, velocityY: Float): Boolean {
+                val start = e1 ?: return false
+                val dx = e2.x - start.x
+                val dy = e2.y - start.y
+                if (abs(dx) < dp(90) || abs(dx) < 2 * abs(dy) || abs(velocityX) < 600) return false
+                stepDay(if (dx < 0) 1 else -1)
+                return true
+            }
+        })
+    }
+    private var sliding = false
+
+    override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
+        // No day changes under the tour overlay.
+        if (!tour.isActive) swipe.onTouchEvent(ev)
+        return super.dispatchTouchEvent(ev)
+    }
+
+    /** Slide the page out towards the swipe, load the day [delta] away, and slide the new page in. */
+    private fun stepDay(delta: Int) {
+        val target = date.plusDays(delta.toLong())
+        if (sliding || target.year !in 1900..2100) return
+        sliding = true
+        val distance = content.width * 0.35f
+        content.animate()
+            .translationX(if (delta > 0) -distance else distance)
+            .alpha(0f)
+            .setDuration(160)
+            .withEndAction {
+                // Clear the old day so it never flashes back while the new one loads.
+                content.removeAllViews()
+                nowCard = null
+                timingsCard = null
+                showDate(target)
+                content.translationX = if (delta > 0) distance else -distance
+                content.animate()
+                    .translationX(0f)
+                    .alpha(1f)
+                    .setDuration(200)
+                    .withEndAction { sliding = false }
+                    .start()
+            }
+            .start()
     }
 
     private fun showDate(newDate: LocalDate) {

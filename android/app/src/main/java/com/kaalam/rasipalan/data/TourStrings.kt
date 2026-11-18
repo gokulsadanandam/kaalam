@@ -68,7 +68,7 @@ private val TAMIL_TOUR = TourStrings(
     ),
     readingDays = TourText(
         "நேற்று, இன்று, நாளை",
-        "நாட்களுக்கு இடையே இங்கே மாறலாம். வேறு தேதிக்குச் செல்ல, மேலே உள்ள தேதியைத் தட்டுங்கள்.",
+        "நாட்களுக்கு இடையே இங்கே மாறலாம்; பக்கவாட்டில் தேய்த்தும் முந்தைய / அடுத்த நாளுக்குச் செல்லலாம். வேறு தேதிக்குச் செல்ல, மேலே உள்ள தேதியைத் தட்டுங்கள்.",
     ),
     readingCalendar = TourText(
         "தினசரி காலண்டர்",
@@ -145,7 +145,7 @@ private val ENGLISH_TOUR = TourStrings(
     ),
     readingDays = TourText(
         "Yesterday, today, tomorrow",
-        "Jump between days here. Tap the date above to pick any other day.",
+        "Jump between days here, or swipe sideways for the previous or next day. Tap the date above to pick any other day.",
     ),
     readingCalendar = TourText(
         "Daily calendar",
