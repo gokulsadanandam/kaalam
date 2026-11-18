@@ -45,6 +45,7 @@ import com.kaalam.rasipalan.data.firstSentence
 import com.kaalam.rasipalan.data.formatMinute
 import com.kaalam.rasipalan.data.network.RasiPalanResponse
 import com.kaalam.rasipalan.data.network.SpanInfo
+import com.kaalam.rasipalan.data.network.StarReading
 import com.kaalam.rasipalan.data.readRasiPalanState
 import com.kaalam.rasipalan.data.reminderKind
 import com.kaalam.rasipalan.data.strings
@@ -444,6 +445,7 @@ class ReadingActivity : ComponentActivity() {
             content.addView(chandrashtamamCard(it.text, it.state), cardParams(if (nowCard == null) 16 else 12))
         }
         content.addView(readingCard(r), cardParams())
+        r.generated?.stars?.takeIf { it.isNotEmpty() }?.let { content.addView(starsCard(it), cardParams()) }
         timingsCard = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }.also { content.addView(it, cardParams()) }
         if (p != null) content.addView(panchangamCard(r), cardParams())
         content.addView(pillButton(s.openCalendar, filled = true) { openCalendar() }, cardParams(16))
@@ -680,6 +682,46 @@ class ReadingActivity : ComponentActivity() {
     }
 
     private var tabTouched = false
+
+    // --- Star by star ----------------------------------------------------------
+
+    /** Each of the rasi's nakshatras: its padas, the day's tone for its natives, its Tara and advice. */
+    private fun starsCard(stars: List<StarReading>): LinearLayout = card().apply {
+        addView(text(s.starWiseTitle, 17f, Kaalam.MAROON, bold = true))
+        addView(text(s.starWiseHint, 12f, Kaalam.INK_SOFT))
+        stars.forEachIndexed { index, star ->
+            if (index > 0) {
+                addView(View(this@ReadingActivity).apply { setBackgroundColor(Accent.DIVIDER) },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(1)).apply { topMargin = dp(12) })
+            }
+            addView(LinearLayout(this@ReadingActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(LinearLayout(this@ReadingActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                    addView(text(star.nakshatra, 17f, Kaalam.INK, bold = true))
+                    if (star.padas.isNotEmpty()) addView(text(s.padas(star.padas), 12f, Kaalam.INK_SOFT))
+                }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+                if (star.tone.isNotBlank()) {
+                    val (bg, fg) = when {
+                        star.score > 0 -> Kaalam.GREEN_BG to Kaalam.GREEN_FG
+                        star.score == -1 -> Accent.AMBER_BG to Accent.AMBER_FG
+                        else -> Kaalam.RED_BG to Kaalam.RED_FG
+                    }
+                    addView(chip(star.tone, bg, fg))
+                }
+            }, matchWidth(dp(12)))
+            if (star.note.isNotBlank()) {
+                val color = when (star.rating) {
+                    "good" -> Kaalam.GREEN_FG
+                    "caution" -> Kaalam.ERROR
+                    else -> Accent.AMBER_FG
+                }
+                addView(text(star.note, 14f, color, bold = true), matchWidth(dp(6)))
+            }
+            if (star.advice.isNotBlank()) addView(text(star.advice, 15f, Kaalam.INK), matchWidth(dp(4)))
+        }
+    }
 
     // --- Timings ---------------------------------------------------------------
 

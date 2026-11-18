@@ -6,7 +6,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import app, { _internals } from '../index.js';
-import { generateRasiPalan, houseFrom } from '../lib/rasiPalanGenerator.js';
+import { generateRasiPalan, houseFrom, AREA_TEXT } from '../lib/rasiPalanGenerator.js';
 import { diffScore, textTone } from '../lib/compare.js';
 import MAHA_WORDS_EN from '../lib/mahaWordsEn.js';
 
@@ -247,6 +247,52 @@ test('a house reading that points the other way from the score is followed by a 
     toCaution += caution;
   }
   assert.ok(toGood > 0 && toCaution > 0, `${toGood} / ${toCaution}`);
+});
+
+test('the reading and headline lead with what changed today', () => {
+  const en = computeAstroDay(day('2026-11-19', 4), ...CHENNAI, 'en').generated.mesham;
+  assert.equal(en.house, 11);
+  assert.equal(en.headline, 'Dasami helps; gains and income');
+  assert.match(en.prediction, /^Dasami tithi supports new beginnings\. With the Moon in the 11th house/);
+  const ta = computeAstroDay(day('2026-11-19', 4), ...CHENNAI, 'ta').generated.mesham;
+  assert.equal(ta.headline, 'தசமி சாதகம்; பண வரவு உண்டு');
+  assert.match(ta.prediction, /^தசமி திதி புதிய தொடக்கங்களுக்கு ஏற்றது\./);
+  // Chandrashtamam keeps the lead: the house-8 reading opens the text.
+  assert.match(computeAstroDay(day('2026-11-11', 3), ...CHENNAI, 'en').generated.mesham.prediction, /^[^.]*Chandrashtamam/);
+});
+
+test('consecutive days in the same house talk about different life areas', () => {
+  const areasIn = (g) => Object.entries(AREA_TEXT.en[g.house]).filter(([, text]) => g.prediction.includes(text)).map(([area]) => area);
+  let sameHouse = 0;
+  const all = readingsOf2026();
+  for (let i = RASIS.length; i < all.length; i++) {
+    const today = all[i];
+    const yesterday = all[i - RASIS.length];
+    const areas = areasIn(today.g);
+    assert.equal(areas.length, 2, `${today.iso} ${today.rasi}: ${areas}`);
+    if (yesterday.g.house !== today.g.house) continue;
+    sameHouse++;
+    const overlap = areas.filter((a) => areasIn(yesterday.g).includes(a));
+    assert.deepEqual(overlap, [], `${today.iso} ${today.rasi} repeats ${overlap}`);
+  }
+  assert.ok(sameHouse > 1000, `only ${sameHouse} same-house day pairs`);
+});
+
+test('every star of the rasi gets its own score, tone, Tara and advice', () => {
+  for (const { iso, rasi, g } of readingsOf2026()) {
+    assert.ok(g.stars.length >= 2 && g.stars.length <= 3, `${iso} ${rasi}`);
+    assert.equal(g.stars.reduce((n, s) => n + s.padas.length, 0), 9, `${iso} ${rasi}`);
+    for (const star of g.stars) {
+      assert.ok([-2, -1, 1, 2].includes(star.score), `${iso} ${rasi} ${star.nakshatra} score ${star.score}`);
+      assert.ok(star.tone, `${iso} ${rasi} ${star.nakshatra} tone`);
+      assert.ok(star.advice.length > 10, `${iso} ${rasi} ${star.nakshatra}`);
+      // The note leads with a Tara that holds at least half an hour, never a few minutes after sunrise.
+      if (!star.changes.length) assert.ok(star.note.startsWith(`${star.taraName} Tara`), `${iso} ${rasi}: ${star.note}`);
+      if (g.house === 8) assert.equal(star.score, -2, `${iso} ${rasi} Chandrashtamam`);
+    }
+  }
+  // Stars of one rasi can differ on the same day.
+  assert.ok(readingsOf2026().some(({ g }) => new Set(g.stars.map((s) => s.score)).size > 1));
 });
 
 test('no reading of the year says "at tomorrow"', () => {

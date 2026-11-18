@@ -168,6 +168,28 @@ data class GeneratedPalan(
     val chandrashtamam: ChandrashtamamInfo? = null,
     /** How the reading was worked out; null from older backends. */
     val basis: GocharaBasis? = null,
+    /** Star by star (the rasi's 2–3 nakshatras); empty from older backends. */
+    val stars: List<StarReading> = emptyList(),
+)
+
+/** One of the rasi's nakshatras today: its Tara Bala, the day's score for its natives and advice. */
+@Serializable
+data class StarReading(
+    val nakshatra: String = "",
+    /** The padas of this nakshatra that belong to the rasi, 1–4. */
+    val padas: List<Int> = emptyList(),
+    /** Tara 1–9 that holds most of the day; null when unknown. */
+    val tara: Int? = null,
+    val taraName: String = "",
+    /** good, mixed or caution. */
+    val rating: String = "",
+    /** e.g. "Sampat Tara — favourable; Vipat Tara (take care) from 8:04 PM". */
+    val note: String = "",
+    /** What this Tara means for the star's natives today. */
+    val advice: String = "",
+    /** -2 … +2 (never 0): the day's composite with this star's own Tara Bala. */
+    val score: Int = 0,
+    val tone: String = "",
 )
 
 /** The Moon's sign(s) during the day, each sign's house from the reader's rasi, and which one decided the reading. */

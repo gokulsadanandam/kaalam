@@ -3,6 +3,13 @@ package com.kaalam.rasipalan.data
 import java.time.DayOfWeek
 import java.time.LocalDate
 
+/** "2–4" for padas 2, 3, 4; "1" for a single pada. */
+private fun padaRange(padas: List<Int>): String = when {
+    padas.isEmpty() -> ""
+    padas.size == 1 -> "${padas.first()}"
+    else -> "${padas.first()}–${padas.last()}"
+}
+
 /** In-app display language. Independent of the phone's system language. */
 enum class AppLanguage(val code: String) {
     TAMIL("ta"),
@@ -140,6 +147,10 @@ class Strings(
     val monthWord: String,
     val credit: (source: String) -> String,
     val readFull: (site: String) -> String,
+    // --- Star-wise readings ---------------------------------------------------
+    val starWiseTitle: String,
+    val starWiseHint: String,
+    val padas: (padas: List<Int>) -> String,
     // --- "How is this worked out?" and lock-screen summary -------------------
     val howLink: String,
     val howTitle: String,
@@ -313,6 +324,9 @@ private val TAMIL_STRINGS = Strings(
     monthWord = "மாதம்",
     credit = { "ஆதாரம்: $it" },
     readFull = { "முழு பலனை $it-ல் படிக்க ↗" },
+    starWiseTitle = "நட்சத்திர வாரியாக",
+    starWiseHint = "உங்கள் ஜென்ம நட்சத்திரத்துக்கான இன்றைய பலன் (தாரா பலம்)",
+    padas = { "பாதம் ${padaRange(it)}" },
     howLink = "ⓘ  இந்தக் கணிப்பு எப்படி செய்யப்படுகிறது?",
     howTitle = "சந்திர கோசாரக் கணிப்பு",
     howYourRasi = { "உங்கள் ராசி $it — இதுவே 1-ம் வீடு" },
@@ -466,6 +480,9 @@ private val ENGLISH_STRINGS = Strings(
     monthWord = "month",
     credit = { "Source: $it" },
     readFull = { "Read the full reading on $it ↗" },
+    starWiseTitle = "By nakshatra",
+    starWiseHint = "Today for your birth star (Tara Bala)",
+    padas = { (if (it.size == 1) "pada " else "padas ") + padaRange(it) },
     howLink = "ⓘ  How is this worked out?",
     howTitle = "How the Moon-transit reading works",
     howYourRasi = { "Your rasi: $it — this is house 1" },

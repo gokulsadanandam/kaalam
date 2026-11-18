@@ -290,6 +290,214 @@ const MORE_TEXT = Object.freeze({
   },
 });
 
+/**
+ * One sentence per life area for each house, in the house's own tone. A
+ * reading is the house's opening sentence plus two of these; the areas
+ * rotate with the phrasing, so consecutive days never cover the same two.
+ */
+const AREAS = Object.freeze(['work', 'money', 'family', 'health']);
+const AREA_TEXT = Object.freeze({
+  ta: {
+    1: {
+      work: 'பணியில் உங்கள் சுறுசுறுப்பு மற்றவர்களின் கவனத்தைப் பெறும்.',
+      money: 'வரவு செலவு சீராக இருக்கும்; சிறு சேமிப்புக்கு ஏற்ற நாள்.',
+      family: 'குடும்பத்தினருடன் மனம் விட்டுப் பேசி மகிழ்வீர்கள்.',
+      health: 'உணவில் ஒழுங்கும் போதிய தூக்கமும் உற்சாகத்தைத் தக்கவைக்கும்.',
+    },
+    2: {
+      work: 'பணியிடத்தில் வார்த்தைகளை அளந்து பேசுவது நல்லது.',
+      money: 'திட்டமிடாத செலவுகளைத் தவிர்க்க கணக்குப் போட்டுச் செயல்படுங்கள்.',
+      family: 'குடும்பத்தில் சிறு கருத்து வேறுபாடுகளைப் பொறுமையாகக் கையாளுங்கள்.',
+      health: 'பல், கண் தொடர்பான சிறு தொந்தரவுகளில் கவனம் தேவை.',
+    },
+    3: {
+      work: 'தள்ளிப்போன வேலைகளை முடிக்க உங்கள் முயற்சி கைகொடுக்கும்.',
+      money: 'சிறு பயணங்கள் அல்லது புதிய தொடர்புகள் மூலம் வருமானம் வரலாம்.',
+      family: 'உடன்பிறந்தவர்களுடன் இணக்கம் கூடும்.',
+      health: 'உடலில் சுறுசுறுப்பு கூடும்; உடற்பயிற்சிக்கு ஏற்ற நாள்.',
+    },
+    4: {
+      work: 'பணியில் அவசரப்படாமல் ஒவ்வொன்றாக முடியுங்கள்.',
+      money: 'வீடு, வாகனம் தொடர்பான செலவுகள் வரலாம்.',
+      family: 'தாயாரின் தேவைகளில் அக்கறை காட்டுங்கள்.',
+      health: 'மனச்சோர்வைத் தவிர்க்க சிறிது ஓய்வும் நடைப்பயிற்சியும் உதவும்.',
+    },
+    5: {
+      work: 'புதிய பொறுப்புகளை ஏற்கும் முன் நன்கு யோசியுங்கள்.',
+      money: 'அபாயமான முதலீடுகளையும் ஊக வணிகத்தையும் தவிர்க்கவும்.',
+      family: 'பிள்ளைகளின் விஷயங்களில் பொறுமையாகச் செயல்படுங்கள்.',
+      health: 'வயிறு தொடர்பான தொந்தரவுகளில் கவனம்; எளிய உணவு நல்லது.',
+    },
+    6: {
+      work: 'பணியில் போட்டியாளர்களை முந்துவீர்கள்.',
+      money: 'பழைய கடன்களை அடைக்கவும் பாக்கிகளை வசூலிக்கவும் ஏற்ற நாள்.',
+      family: 'குடும்பத்தில் இருந்த சிறு பிரச்சினைகள் தீரும்.',
+      health: 'உடல்நலம் மேம்படும்; நீண்ட நாள் தொந்தரவுகள் குறையும்.',
+    },
+    7: {
+      work: 'கூட்டு முயற்சிகளும் ஒப்பந்தங்களும் சாதகமாக அமையும்.',
+      money: 'கூட்டாளிகள் மூலம் ஆதாயம் கிடைக்கும்.',
+      family: 'வாழ்க்கைத் துணையுடன் இனிய நேரம் செலவிடுவீர்கள்.',
+      health: 'மன நிறைவால் உடலிலும் உற்சாகம் தெரியும்.',
+    },
+    8: {
+      work: 'பணியில் புதிய முயற்சிகளைத் தொடங்காமல் வழக்கமான வேலைகளை மட்டும் செய்யுங்கள்.',
+      money: 'பெரிய பணப் பரிவர்த்தனைகளையும் கடன் கொடுப்பதையும் தவிர்க்கவும்.',
+      family: 'வீட்டில் வாக்குவாதங்களைத் தவிர்த்து அமைதி காக்கவும்.',
+      health: 'வாகனம் ஓட்டும்போதும் உடல்நலத்திலும் கூடுதல் கவனம் தேவை.',
+    },
+    9: {
+      work: 'பணியில் தாமதங்கள் வந்தாலும் பொறுமையுடன் தொடருங்கள்.',
+      money: 'எதிர்பார்த்த பணம் வரத் தாமதமாகலாம்.',
+      family: 'தந்தை, பெரியோருடன் இணக்கமாக நடந்துகொள்ளுங்கள்.',
+      health: 'களைப்பைத் தவிர்க்க போதிய ஓய்வு எடுங்கள்.',
+    },
+    10: {
+      work: 'பணியில் பொறுப்புகளும் பாராட்டும் கூடும்.',
+      money: 'தொழில் மூலம் வருமானம் உயரும்.',
+      family: 'உங்கள் முன்னேற்றம் குடும்பத்தினருக்கு மகிழ்ச்சி தரும்.',
+      health: 'சுறுசுறுப்பாக இருப்பீர்கள்; வேலைக்கு இடையே ஓய்வும் அவசியம்.',
+    },
+    11: {
+      work: 'பணியில் எதிர்பார்த்த ஆதரவு கிடைக்கும்.',
+      money: 'பல வழிகளில் பண வரவு உண்டு.',
+      family: 'மூத்த சகோதரர்கள், நண்பர்களால் மகிழ்ச்சி கிடைக்கும்.',
+      health: 'மனமும் உடலும் உற்சாகமாக இருக்கும்.',
+    },
+    12: {
+      work: 'பணியில் கூடுதல் அலைச்சல் இருக்கலாம்; திட்டமிட்டுச் செயல்படுங்கள்.',
+      money: 'வீண் செலவுகளைக் கட்டுப்படுத்துங்கள்.',
+      family: 'தொலைவில் உள்ள உறவினர்களுடன் தொடர்பு கொள்வீர்கள்.',
+      health: 'தூக்கம் குறையாமல் பார்த்துக்கொள்ளுங்கள்.',
+    },
+  },
+  en: {
+    1: {
+      work: 'Your energy at work gets noticed.',
+      money: 'Income and spending stay balanced; a good day to save a little.',
+      family: 'Open conversations with family lift your mood.',
+      health: 'Regular meals and good sleep keep your energy up.',
+    },
+    2: {
+      work: 'Weigh your words at work.',
+      money: 'Keep a budget so unplanned spending does not pile up.',
+      family: 'Handle small differences at home with patience.',
+      health: 'Take care of minor eye or tooth troubles.',
+    },
+    3: {
+      work: 'Your initiative helps clear pending work.',
+      money: 'Short trips or new contacts may bring income.',
+      family: 'Ties with siblings grow warmer.',
+      health: 'You feel active; a good day for exercise.',
+    },
+    4: {
+      work: 'At work, take things one at a time without rushing.',
+      money: 'Expenses on the home or vehicle may come up.',
+      family: 'Pay attention to your mother\'s needs.',
+      health: 'A little rest and a short walk keep low moods away.',
+    },
+    5: {
+      work: 'Think carefully before taking on new responsibilities.',
+      money: 'Avoid speculative or risky investments.',
+      family: 'Be patient with your children\'s concerns.',
+      health: 'Watch your digestion; keep meals simple.',
+    },
+    6: {
+      work: 'You move ahead of competitors at work.',
+      money: 'A good day to repay old debts and collect dues.',
+      family: 'Small problems at home get resolved.',
+      health: 'Health improves and long-standing complaints ease.',
+    },
+    7: {
+      work: 'Joint ventures and agreements go your way.',
+      money: 'Partners bring gains.',
+      family: 'You spend pleasant time with your spouse.',
+      health: 'Contentment shows as fresh energy.',
+    },
+    8: {
+      work: 'At work, stick to routine tasks and start nothing new.',
+      money: 'Avoid big money dealings and lending.',
+      family: 'Steer clear of arguments at home.',
+      health: 'Take extra care with your health and while driving.',
+    },
+    9: {
+      work: 'Keep going patiently even if work is delayed.',
+      money: 'Expected money may be late.',
+      family: 'Stay on good terms with your father and elders.',
+      health: 'Rest enough to avoid fatigue.',
+    },
+    10: {
+      work: 'Responsibility and recognition grow at work.',
+      money: 'Income from work or business rises.',
+      family: 'Your progress makes your family proud.',
+      health: 'You stay active; take short breaks between tasks.',
+    },
+    11: {
+      work: 'You get the support you hoped for at work.',
+      money: 'Money comes in from more than one source.',
+      family: 'Elder siblings and friends bring joy.',
+      health: 'Body and mind feel upbeat.',
+    },
+    12: {
+      work: 'Work may involve extra running around; plan ahead.',
+      money: 'Keep needless spending in check.',
+      family: 'You may connect with relatives who live far away.',
+      health: 'Make sure you get enough sleep.',
+    },
+  },
+});
+
+/** What a star's Tara (1 … 9) means for its natives today. */
+const TARA_ADVICE = Object.freeze({
+  ta: [
+    null,
+    'உடல்நலத்தில் கவனம்; முக்கிய முடிவுகளைத் தள்ளிப்போடுங்கள்.',
+    'பண விஷயங்களுக்கும் புதிய முயற்சிகளுக்கும் ஏற்ற நாள்.',
+    'சிறு தடைகள் வரலாம்; பயணங்களிலும் பணத்திலும் கவனம்.',
+    'நலமும் நிம்மதியும் நிலவும்; வழக்கமான பணிகள் சிறக்கும்.',
+    'எதிர்ப்புகள் தோன்றலாம்; வாக்குவாதங்களைத் தவிர்க்கவும்.',
+    'எடுத்த காரியம் நிறைவேறும்; முயற்சிக்கு ஏற்ற நாள்.',
+    'கூடுதல் கவனம் தேவை; புதிய முயற்சிகளையும் அபாயங்களையும் தவிர்க்கவும்.',
+    'நண்பர்களின் உதவி கிடைக்கும்; சந்திப்புகள் இனிமையாக அமையும்.',
+    'மிகச் சாதகமான நாள்; நெருங்கியவர்களின் ஆதரவு பெருகும்.',
+  ],
+  en: [
+    null,
+    'Look after your health and postpone major decisions.',
+    'A good day for money matters and new efforts.',
+    'Minor hurdles are possible; take care with travel and money.',
+    'Well-being and peace of mind; routine work goes smoothly.',
+    'Opposition may arise; avoid arguments.',
+    'What you set out to do gets done; a good day for effort.',
+    'Extra care needed; avoid new ventures and risks.',
+    'Friends lend a hand; meetings go pleasantly.',
+    'A very favourable day; support from those close to you grows.',
+  ],
+});
+
+/** A star's Tara part shorter than this is left out of its note. */
+const STAR_NOTE_MIN_MS = 30 * 60_000;
+
+/** The first sentence of a text (up to and including its first full stop). */
+const firstSentenceOf = (text) => (text.match(/^[^.]*\./) || [text])[0];
+
+/**
+ * The house reading for a day: the opening sentence of phrasing `phrasing`,
+ * then two life areas. Phrasing p covers areas p and p + 2 (mod 4), so the
+ * next day's pair never overlaps.
+ */
+function houseParagraph(house, lang, phrasing) {
+  const areas = AREA_TEXT[lang === 'en' ? 'en' : 'ta'][house];
+  return [
+    firstSentenceOf(houseText(house, lang, phrasing)),
+    areas[AREAS[phrasing % 4]],
+    areas[AREAS[(phrasing + 2) % 4]],
+  ].join(' ');
+}
+
+/** "Gains and income" -> "gains and income", for a headline that no longer starts with it. */
+const lowerFirst = (text) => text.charAt(0).toLowerCase() + text.slice(1);
+
 const PHRASINGS = 4;
 
 /** Phrasing 0 … 3 for a date; consecutive dates always differ (and any 4 in a row are all different). */
@@ -544,7 +752,10 @@ const round3 = (x) => Math.round(x * 1000) / 1000;
 function starNotes(factors, names, words, formatTime) {
   const taraName = (t) => words.names[t];
   return factors.detail.stars.map((star) => {
-    const [first, ...rest] = star.parts;
+    // A Tara that holds only minutes (a change just after sunrise) would lead the note with
+    // the wrong Tara; parts under 30 minutes are left out, keeping at least the main one.
+    const lasting = star.parts.filter((p) => p.endMs - p.startMs >= STAR_NOTE_MIN_MS);
+    const [first, ...rest] = lasting.length ? lasting : [star.parts.find((p) => p.tara === star.tara) || star.parts[0]];
     const note = words.note(taraName(first.tara), words.ratings[TARAS[first.tara].rating])
       + rest.map((p) => words.then(formatTime(p.startMs), taraName(p.tara), words.ratings[TARAS[p.tara].rating])).join('');
     return {
@@ -675,7 +886,10 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
   const entry = GOCHARA[house];
   const text = english ? GOCHARA_EN[house] : entry;
 
-  let prediction = houseText(house, lang, panchanga ? phrasingFor(panchanga.iso, rasiIndex) : 0);
+  // With a Panchangam: opening sentence + two rotating life areas. Without one: the classic paragraph.
+  let prediction = panchanga
+    ? houseParagraph(house, lang, phrasingFor(panchanga.iso, rasiIndex))
+    : houseText(house, lang, 0);
   // Chandrashtamam that starts during the day: "Today is Chandrashtamam" would contradict the start time below.
   if (house === 8 && primary !== first) {
     prediction = prediction.replace(/^[^.]*\.\s*/, `${english ? CHANDRASHTAMAM_LATER.en : CHANDRASHTAMAM_LATER.ta} `);
@@ -778,9 +992,22 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
     // because of the Chandrashtamam cap already has its Chandrashtamam sentence, so it gets no bridge.
     if (entry.score > 0 && composite < 0) bridge = english ? BRIDGE_TO_CAUTION.en : BRIDGE_TO_CAUTION.ta;
     // The bridge answers the house reading, so it comes straight after it, before any Moon-change sentence.
-    prediction = [houseReading, bridge, moonSentence].filter(Boolean).join(' ');
 
-    stars = starNotes(factors, names, TARA_WORDS[english ? 'en' : 'ta'], formatTime);
+    // Star by star: the same composite with this star's own Tara Bala in place of the rasi average,
+    // under the same Chandrashtamam rules, plus what its Tara means today.
+    const advice = TARA_ADVICE[english ? 'en' : 'ta'];
+    stars = starNotes(factors, names, TARA_WORDS[english ? 'en' : 'ta'], formatTime).map((star) => {
+      const starTotal = factors.total + WEIGHTS.tara * (star.value - factors.values.tara);
+      let starScore = scoreOf(starTotal);
+      if (house === 8) starScore = -2;
+      else if (chandrashtamamMs >= CHANDRASHTAMAM_MIN_MS) starScore = Math.min(starScore, -1);
+      return {
+        ...star,
+        score: starScore,
+        tone: (english ? TONE_EN : TONE)[starScore],
+        advice: star.tara ? advice[star.tara] : '',
+      };
+    });
     const tara = taraSentence(factors, stars, names, P);
     const candidates = ['tithiYoga', 'weekday', 'karana'];
     // A real Vishti (Bhadrai) window is always the modifier, unless Chandrashtamam already rules the day:
@@ -795,12 +1022,25 @@ function generateRasiPalan(rasiIndex, moonRasiSpans, day, formatTime, lang = 'ta
       ? factors.detail.tithi.segments.find((s) => tithiKind(s.index) === 'prathamai')
       : null;
     const modifier = prathamai ? P.tithi.prathamai(prathamai.name) : factorSentence(modifierFactor, factors, lang, P, formatTime, day);
-    prediction = shift.factor === 'tara' ? `${prediction} ${tara} ${modifier}` : `${prediction} ${modifier} ${tara}`;
+    // Lead with what is new today (the Moon's house stays the same for 2–3 days), so the widget's
+    // first lines change daily. Chandrashtamam is the day's main story, so it keeps the lead.
+    const taraLeads = shift.factor === 'tara' && !vishtiWindow && !prathamai;
+    const [todaySentence, otherSentence] = taraLeads ? [tara, modifier] : [modifier, tara];
+    const moonPart = [houseReading, bridge, moonSentence];
+    prediction = (houses.includes(8)
+      ? [...moonPart, todaySentence, otherSentence]
+      : [todaySentence, ...moonPart, otherSentence]
+    ).filter(Boolean).join(' ');
 
-    // A Moon change or Chandrashtamam already shapes the headline; otherwise name the day's main shift.
+    // A Moon change or Chandrashtamam already shapes the headline; otherwise it starts with the
+    // day's main shift ("தசமி சாதகம்; பண வரவு உண்டு"), since the house part repeats for 2–3 days.
     if (headline === baseHeadline && !houses.includes(8)) {
-      const suffix = shiftSuffix(shift, factors, english ? 'en' : 'ta', P);
-      if (suffix) headline = `${headline}; ${suffix}`;
+      const lead = shiftSuffix(shift, factors, english ? 'en' : 'ta', P);
+      if (lead) {
+        headline = english
+          ? `${lead.charAt(0).toUpperCase()}${lead.slice(1)}; ${lowerFirst(headline)}`
+          : `${lead}; ${headline}`;
+      }
     }
 
     const contributions = {};
@@ -856,4 +1096,4 @@ function gocharaTable(lang = 'ta') {
   }));
 }
 
-export { generateRasiPalan, houseFrom, gocharaTable, GOCHARA };
+export { generateRasiPalan, houseFrom, gocharaTable, GOCHARA, AREA_TEXT };

@@ -76,6 +76,26 @@ class PredictionChooserTest {
     }
 
     @Test
+    fun `decodes the star-by-star readings`() {
+        val json = """{"rasi":"mesham","rasiTamil":"மேஷம்","date":"2026-11-19","prediction":"x.","nallaNeram":"—","rahuKalam":"—",
+            "generated":{"prediction":"p","score":2,"house":11,"stars":[
+                {"nakshatra":"அசுவினி","nakshatraIndex":0,"padas":[1,2,3,4],"tara":7,"taraName":"வதை","rating":"caution","value":-0.99,
+                 "note":"வதை தாரை — கவனம் தேவை","advice":"கூடுதல் கவனம் தேவை.","score":1,"tone":"நன்று","changes":[]},
+                {"nakshatra":"கார்த்திகை","padas":[1],"tara":null,"score":-1}]}}"""
+        val stars = RasiPalanApi.json.decodeFromString(RasiPalanResponse.serializer(), json).generated!!.stars
+        assertEquals(listOf("அசுவினி", "கார்த்திகை"), stars.map { it.nakshatra })
+        assertEquals(listOf(1, 2, 3, 4), stars[0].padas)
+        assertEquals(7, stars[0].tara)
+        assertEquals("caution", stars[0].rating)
+        assertEquals("நன்று", stars[0].tone)
+        assertNull(stars[1].tara)
+        assertEquals("", stars[1].advice)
+        // Older backends send no stars: an empty list, so the card is simply not shown.
+        val old = """{"rasi":"mesham","rasiTamil":"மேஷம்","date":"2026-11-19","prediction":"x.","nallaNeram":"—","rahuKalam":"—","generated":{"prediction":"p"}}"""
+        assertTrue(RasiPalanApi.json.decodeFromString(RasiPalanResponse.serializer(), old).generated!!.stars.isEmpty())
+    }
+
+    @Test
     fun `lock-screen line shows now and the next good time`() {
         val timeline = DayTimeline.from(
             com.kaalam.rasipalan.data.network.TimelineInfo(
